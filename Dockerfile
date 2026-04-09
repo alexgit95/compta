@@ -3,6 +3,7 @@ FROM eclipse-temurin:25-jdk-jammy AS builder
 WORKDIR /app
 COPY mvnw pom.xml ./
 COPY .mvn .mvn
+RUN chmod +x mvnw
 RUN ./mvnw dependency:go-offline -B
 COPY src ./src
 RUN ./mvnw -B package -DskipTests
