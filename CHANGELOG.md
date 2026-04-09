@@ -5,6 +5,34 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.2.0] - 2026-04-09
+
+### Ajouté
+
+#### Module Objectifs (nouveau)
+
+- **Nouveau modèle `Goal`** (`goal` en base) : objectif lié à un compte épargne, de type `TARGET_BALANCE` (solde cible) ou `MONTHLY_CONTRIBUTION` (versement mensuel cible), avec un montant objectif.
+- **`GoalRepository`**, **`GoalService`**, **`GoalController`** : stack complète CRUD pour les objectifs.
+- **Page `/goals`** (onglet *Objectifs* dans la navigation) :
+  - **Sélecteur de tendance** : champ numérique pour choisir sur combien d'années analyser la tendance (1–20, défaut 3).
+  - **Histogramme "Versements mensuels"** : barre *versement actuel* vs *objectif* par compte (visible si au moins un objectif de type `MONTHLY_CONTRIBUTION`).
+  - **Histogramme "Solde cible"** : barre *solde actuel* vs *objectif* par compte (visible si au moins un objectif `TARGET_BALANCE`), avec infobulle indiquant la date d'atteinte estimée.
+  - **Courbe de tendance par objectif de solde** : graphique ligne couvrant `trendYears` années passées jusqu'à la date d'atteinte estimée (ou +5 ans), avec régression linéaire, projection mensuelle (tirets), ligne horizontale de l'objectif (annotation rouge pointillée) et marqueur *Aujourd'hui*.
+  - **Date d'atteinte estimée** : calculée à partir du taux moyen de croissance mensuelle sur la période de tendance ; affichée au format `MM/yyyy` dans l'en-tête de chaque courbe de tendance.
+  - **Bandeau d'alerte** (⚠️) : affiché en haut de la page pour chaque compte dont le solde a atteint l'objectif mais dont le versement mensuel est encore actif.
+  - **Tableau récapitulatif** : liste de tous les objectifs avec progression en % (colorée en vert à 100 %).
+  - **Modal de création d'objectif** (EDITOR/ADMIN uniquement) : sélection du compte, du type et du montant.
+  - **Suppression d'objectif** (EDITOR/ADMIN uniquement) avec confirmation.
+- **Import/Export** : les objectifs sont inclus dans le JSON exporté (`goals`) et restaurés lors de l'import (re-liaison par libellé de compte). L'ordre de suppression est respecté (goals supprimés avant les comptes épargne).
+- **Sécurité** : `/goals/**` accessible en lecture à tous les rôles (`ADMIN`, `EDITOR`, `VIEWER`) ; création et suppression restreintes à `EDITOR` et `ADMIN` via `@PreAuthorize`.
+
+## [0.1.3] - 2026-04-09
+
+### Modifié
+
+#### Module Épargne
+- **Ajustement de l'échelle Y du graphique** : l'axe Y du graphique d'épargne suggère désormais un maximum supérieur à la valeur maximale des séries (marge de ~10%) pour améliorer la lisibilité. Fichier modifié : `src/main/resources/templates/savings.html`.
+
 ## [0.1.2] - 2026-04-08
 
 ### Ajouté
@@ -41,6 +69,9 @@ et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/)
 
 ### Corrigé
 
+###  Ajouté (2026-04-09)
+
+- **PWA** : ajout d'un `manifest.webmanifest`, icônes et `sw.js` pour permettre l'installation sur Android et le mode hors-ligne. Les ressources publiques sont exposées via `/manifest.webmanifest`, `/icons/**` et `/sw.js`.
 #### Sécurité / Spring Boot
 - **Dépendance circulaire** entre `SecurityConfig`, `ApiKeyAuthFilter` et `ApiKeyService` : déplacement du bean `PasswordEncoder` dans une classe dédiée `PasswordEncoderConfig`
 - **Import de données** (`ImportExportService`) : remplacement de `deleteAll()` par `deleteAllInBatch()` suivi de `entityManager.flush()` + `entityManager.clear()` pour éviter la violation de contrainte UNIQUE lors de la réimportation

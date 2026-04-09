@@ -306,9 +306,25 @@ function renderChart() {
 
     const { labels, datasets } = buildChart(fromYM, toYM);
 
+    // Calculer la valeur maximale visible pour ajouter une marge sur l'axe Y
+    let maxVal = 0;
+    datasets.forEach(ds => {
+        ds.data.forEach(v => {
+            if (v !== null && typeof v === 'number' && !isNaN(v)) {
+                maxVal = Math.max(maxVal, v);
+            }
+        });
+    });
+    const suggestedMax = maxVal > 0 ? Math.ceil(maxVal * 1.1) : undefined;
+
     if (savingsChart) {
-        savingsChart.data.labels   = labels;
+        savingsChart.data.labels = labels;
         savingsChart.data.datasets = datasets;
+        // Mettre à jour la suggestion de maximum pour l'axe Y
+        if (!savingsChart.options) savingsChart.options = {};
+        if (!savingsChart.options.scales) savingsChart.options.scales = {};
+        if (!savingsChart.options.scales.y) savingsChart.options.scales.y = {};
+        savingsChart.options.scales.y.suggestedMax = suggestedMax;
         savingsChart.update();
     } else {
         savingsChart = new Chart(document.getElementById('savingsChart'), {
@@ -350,7 +366,7 @@ function renderChart() {
                 },
                 scales: {
                     x: { type: 'category', grid: { display: false } },
-                    y: { ticks: { callback: v => v.toFixed(0) + ' €' }, grid: { color: 'rgba(0,0,0,.05)' } }
+                    y: { ticks: { callback: v => v.toFixed(0) + ' €' }, grid: { color: 'rgba(0,0,0,.05)' }, suggestedMax: suggestedMax }
                 }
             }
         });

@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout :: layout(~{::content}, ~{::scripts})}">
+<head><title>Objectifs</title></head>
+
+<th:block th:fragment="content">
+<div>
+
+    <!-- ── Page header ──────────────────────────────────────────────────── -->
+    <div class="flex flex-wrap" style="justify-content:space-between; align-items:flex-end; margin-bottom:1.5rem;">
+        <div>
+            <h1 style="font-size:1.4rem; font-weight:800;">🎯 Objectifs d'épargne</h1>
+            <div class="text-muted">Suivez vos objectifs de solde cible et de versement mensuel.</div>
+        </div>
+        <button sec:authorize="hasAnyRole('ADMIN','EDITOR')"
+                class="btn btn-primary"
+                onclick="document.getElementById('modal-new-goal').style.display='flex'">
+            + Nouvel objectif
+        </button>
+    </div>
+
+    <!-- ── Alertes : objectifs de solde atteints avec versements actifs ─── -->
+    <div th:each="alert : ${alerts}"
+         style="background:#fff3cd; border:1px solid #ffc107; border-radius:8px;
+                padding:1rem 1.25rem; margin-bottom:1rem; display:flex; align-items:flex-start; gap:.75rem;">
+        <span style="font-size:1.4rem; flex-shrink:0;">⚠️</span>
+        <div>
+            <strong>Objectif de solde atteint — versements toujours actifs</strong><br/>
+            Le compte <strong th:text="${alert.savingsAccount.label}"></strong>
+            a atteint son objectif de
+            <strong th:text="${#numbers.formatDecimal(alert.targetAmount, 1, 'COMMA', 2, 'POINT') + ' €'}"></strong>,
+            mais reçoit encore
+            <strong th:text="${#numbers.formatDecimal(alert.savingsAccount.monthlyDeposit, 1, 'COMMA', 2, 'POINT') + ' €/mois'}"></strong>.
+            Pensez à revoir votre stratégie de versement ou à mettre à jour cet objectif.
+        </div>
+    </div>
+
+    <!-- ── Sélecteur de période de tendance ─────────────────────────────── -->
+    <div class="card" style="margin-bottom:1rem;">
+        <form method="get" action="/goals" class="flex" style="align-items:center; gap:1rem; flex-wrap:wrap;">
+            <label style="font-weight:600;">Analyser la tendance sur les dernières</label>
+            <input type="number" name="trendYears" class="form-control" style="width:80px;"
+                   th:value="${trendYears}" min="1" max="20"/>
+            <label>années</label>
+            <button type="submit" class="btn btn-outline btn-sm">Actualiser</button>
+        </form>
+    </div>
+
+    <!-- ── Message vide ──────────────────────────────────────────────────── -->
+    <div th:if="${#lists.isEmpty(goals)}" class="card" style="text-align:center; color:var(--text-muted); padding:2rem;">
+        Aucun objectif défini. Créez votre premier objectif avec le bouton ci-dessus.
+    </div>
+
+    <!-- ── Objectifs de versement mensuel (histogramme groupé) ──────────── -->
+    <div id="monthlySection" class="card" style="display:none;">
+        <div class="card-title">📅 Objectifs de versement mensuel</div>
+        <div class="text-muted" style="margin-bottom:1rem; font-size:.88rem;">
+            Versement mensuel actuel comparé à l'objectif fixé, par compte.
+        </div>
+        <div class="chart-container" style="height:300px;">
+            <canvas id="monthlyChart"></canvas>
+        </div>
+    </div>
+
+    <!-- ── Objectifs de solde (histogramme + courbes de tendance) ────────── -->
+    <div id="balanceSection" class="card" style="display:none;">
+        <div class="card-title">💰 Objectifs de solde</div>
+        <div class="text-muted" style="margin-bottom:1rem; font-size:.88rem;">
+            Solde actuel comparé à l'objectif, par compte.
+        </div>
+        <!-- Graphique de synthèse -->
+        <div class="chart-container" style="height:300px; margin-bottom:2rem;">
+            <canvas id="balanceSummaryChart"></canvas>
+        </div>
+
+        <!-- Détail par objectif : courbe tendance + projection -->
+        <div th:each="goal : ${goals}" th:if="${goal.type.name() == 'TARGET_BALANCE'}">
+            <div style="border-top:1px solid var(--border); padding-top:1.25rem; margin-top:1.25rem;">
+                <div class="flex flex-wrap" style="justify-content:space-between; align-items:flex-start; margin-bottom:.75rem; gap:.5rem;">
+                    <div style="font-weight:700; font-size:1.05rem;" th:text="${goal.savingsAccount.label}"></div>
+                    <div class="flex flex-wrap" style="gap:1.25rem; font-size:.9rem; align-items:center;">
+                        <div>
+                            Solde actuel :
+                            <strong th:text="${#numbers.formatDecimal(currentValues.get(goal.savingsAccount.id), 1, 'COMMA', 2, 'POINT') + ' €'}"></strong>
+                        </div>
+                        <div>
+                            Objectif :
+                            <strong th:text="${#numbers.formatDecimal(goal.targetAmount, 1, 'COMMA', 2, 'POINT') + ' €'}"></strong>
+                        </div>
+                        <div th:if="${reachDates.containsKey(goal.id)}"
+                             style="color:var(--primary); font-weight:600;">
+                            🏁 Atteinte estimée :
+                            <strong th:text="${#temporals.format(reachDates.get(goal.id), 'MM/yyyy')}"></strong>
+                        </div>
+                        <div th:unless="${reachDates.containsKey(goal.id)}">
+                            <span th:if="${currentValues.get(goal.savingsAccount.id) != null
+                                          and currentValues.get(goal.savingsAccount.id).compareTo(goal.targetAmount) >= 0}"
+                                  style="color:#27ae60; font-weight:600;">
+                                ✅ Objectif atteint !
+                            </span>
+                            <span th:unless="${currentValues.get(goal.savingsAccount.id) != null
+                                              and currentValues.get(goal.savingsAccount.id).compareTo(goal.targetAmount) >= 0}"
+                                  style="color:var(--text-muted);">
+                                Tendance insuffisante pour estimer la date
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-container" style="height:260px;">
+                    <canvas th:id="'trendChart-' + ${goal.id}"
+                            th:data-goal-id="${goal.id}"
+                            th:data-target="${goal.targetAmount}"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Tableau récapitulatif des objectifs ───────────────────────────── -->
+    <div class="card" th:if="${!#lists.isEmpty(goals)}">
+        <div class="card-title">📋 Liste des objectifs</div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Compte</th>
+                    <th>Type</th>
+                    <th class="text-right">Objectif (€)</th>
+                    <th class="text-right">Valeur actuelle</th>
+                    <th class="text-right">Progression</th>
+                    <th sec:authorize="hasAnyRole('ADMIN','EDITOR')">Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="goal : ${goals}">
+                    <td th:text="${goal.savingsAccount.label}"></td>
+                    <td>
+                        <span th:if="${goal.type.name() == 'TARGET_BALANCE'}">💰 Solde cible</span>
+                        <span th:if="${goal.type.name() == 'MONTHLY_CONTRIBUTION'}">📅 Versement mensuel</span>
+                    </td>
+                    <td class="text-right"
+                        th:text="${#numbers.formatDecimal(goal.targetAmount, 1, 'COMMA', 2, 'POINT') + ' €'}"></td>
+                    <td class="text-right">
+                        <span th:if="${goal.type.name() == 'TARGET_BALANCE'}"
+                              th:text="${#numbers.formatDecimal(currentValues.get(goal.savingsAccount.id), 1, 'COMMA', 2, 'POINT') + ' €'}"></span>
+                        <span th:if="${goal.type.name() == 'MONTHLY_CONTRIBUTION'}"
+                              th:text="${#numbers.formatDecimal(goal.savingsAccount.monthlyDeposit, 1, 'COMMA', 2, 'POINT') + ' €/mois'}"></span>
+                    </td>
+                    <td class="text-right">
+                        <span th:if="${goal.type.name() == 'TARGET_BALANCE' and goal.targetAmount.compareTo(T(java.math.BigDecimal).ZERO) > 0 and currentValues.containsKey(goal.savingsAccount.id)}"
+                              th:with="cv=${currentValues.get(goal.savingsAccount.id)},pct=${cv.multiply(new java.math.BigDecimal(100)).divide(goal.targetAmount, 0, T(java.math.RoundingMode).HALF_UP)}"
+                              th:text="${pct + ' %'}"
+                              th:style="${pct.compareTo(new java.math.BigDecimal(100)) >= 0} ? 'color:#27ae60; font-weight:600;' : ''"></span>
+                        <span th:if="${goal.type.name() == 'MONTHLY_CONTRIBUTION' and goal.targetAmount.compareTo(T(java.math.BigDecimal).ZERO) > 0 and goal.savingsAccount.monthlyDeposit != null}"
+                              th:with="pct=${goal.savingsAccount.monthlyDeposit.multiply(new java.math.BigDecimal(100)).divide(goal.targetAmount, 0, T(java.math.RoundingMode).HALF_UP)}"
+                              th:text="${pct + ' %'}"
+                              th:style="${pct.compareTo(new java.math.BigDecimal(100)) >= 0} ? 'color:#27ae60; font-weight:600;' : ''"></span>
+                    </td>
+                    <td sec:authorize="hasAnyRole('ADMIN','EDITOR')" style="white-space:nowrap;">
+                        <button class="btn btn-outline btn-sm"
+                                th:data-goal-id="${goal.id}"
+                                th:data-account-id="${goal.savingsAccount.id}"
+                                th:data-type="${goal.type}"
+                                th:data-amount="${goal.targetAmount}"
+                                onclick="openEditGoal(this)">
+                            ✏️ Modifier
+                        </button>
+                        <form th:action="@{/goals/{id}/delete(id=${goal.id})}" method="post"
+                              style="display:inline; margin-left:.25rem;"
+                              onsubmit="return confirm('Supprimer cet objectif ?')">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                            <input type="hidden" name="trendYears" th:value="${trendYears}"/>
+                            <button class="btn btn-danger btn-sm">🗑️ Supprimer</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── Modal : nouvel objectif ───────────────────────────────────────── -->
+    <div sec:authorize="hasAnyRole('ADMIN','EDITOR')"
+         id="modal-new-goal"
+         style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45);
+                align-items:center; justify-content:center; z-index:200;">
+        <div class="card" style="width:100%; max-width:480px; margin:0;">
+            <div class="card-title">Nouvel objectif</div>
+            <form th:action="@{/goals/save}" method="post">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="hidden" name="trendYears" th:value="${trendYears}"/>
+                <div class="form-group">
+                    <label>Compte épargne *</label>
+                    <select name="savingsAccountId" class="form-control" required>
+                        <option value="">— Sélectionner un compte —</option>
+                        <option th:each="acc : ${accounts}"
+                                th:value="${acc.id}"
+                                th:text="${acc.label}"></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Type d'objectif *</label>
+                    <select name="type" class="form-control" required>
+                        <option value="TARGET_BALANCE">💰 Solde cible</option>
+                        <option value="MONTHLY_CONTRIBUTION">📅 Versement mensuel cible</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Montant objectif (€) *</label>
+                    <input type="number" step="0.01" min="0.01" name="targetAmount"
+                           class="form-control" required placeholder="ex. 10000.00"/>
+                </div>
+                <div class="flex" style="justify-content:flex-end; gap:.75rem; margin-top:1rem;">
+                    <button type="button" class="btn btn-outline"
+                            onclick="document.getElementById('modal-new-goal').style.display='none'">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-primary">Créer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Modal : modifier un objectif ─────────────────────────────────────── -->
+    <div sec:authorize="hasAnyRole('ADMIN','EDITOR')"
+         id="modal-edit-goal"
+         style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45);
+                align-items:center; justify-content:center; z-index:200;">
+        <div class="card" style="width:100%; max-width:480px; margin:0;">
+            <div class="card-title">Modifier l'objectif</div>
+            <form th:action="@{/goals/save}" method="post">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="hidden" name="trendYears" th:value="${trendYears}"/>
+                <input type="hidden" id="edit-goal-id" name="goalId"/>
+                <div class="form-group">
+                    <label>Compte épargne *</label>
+                    <select id="edit-account-select" name="savingsAccountId" class="form-control" required>
+                        <option th:each="acc : ${accounts}"
+                                th:value="${acc.id}"
+                                th:text="${acc.label}"></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Type d'objectif *</label>
+                    <select id="edit-type-select" name="type" class="form-control" required>
+                        <option value="TARGET_BALANCE">💰 Solde cible</option>
+                        <option value="MONTHLY_CONTRIBUTION">📅 Versement mensuel cible</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Montant objectif (€) *</label>
+                    <input id="edit-amount-input" type="number" step="0.01" min="0.01" name="targetAmount"
+                           class="form-control" required/>
+                </div>
+                <div class="flex" style="justify-content:flex-end; gap:.75rem; margin-top:1rem;">
+                    <button type="button" class="btn btn-outline"
+                            onclick="document.getElementById('modal-edit-goal').style.display='none'">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+</th:block>
+
+<th:block th:fragment="scripts">
+<script th:inline="javascript">
+/*<![CDATA[*/
+const monthlyData  = /*[[${monthlyContribData}]]*/ [];
+const balanceData  = /*[[${balanceGoalData}]]*/ [];
+const trendData    = /*[[${trendChartData}]]*/ {};
+
+// ── Show sections only when data exists ──────────────────────────────────────
+if (monthlyData.length > 0) document.getElementById('monthlySection').style.display = 'block';
+if (balanceData.length > 0) document.getElementById('balanceSection').style.display = 'block';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function fmtEur(v) {
+    return Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+function monthDiff(fromYM, toYM) {
+    const [fy, fm] = fromYM.split('-').map(Number);
+    const [ty, tm] = toYM.split('-').map(Number);
+    return (ty - fy) * 12 + (tm - fm);
+}
+
+function linearRegression(xArr, yArr) {
+    const n = xArr.length;
+    if (n < 2) return null;
+    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+    for (let i = 0; i < n; i++) {
+        sumX += xArr[i]; sumY += yArr[i];
+        sumXY += xArr[i] * yArr[i]; sumX2 += xArr[i] * xArr[i];
+    }
+    const denom = n * sumX2 - sumX * sumX;
+    if (denom === 0) return null;
+    const slope = (n * sumXY - sumX * sumY) / denom;
+    const intercept = (sumY - slope * sumX) / n;
+    return { slope, intercept };
+}
+
+// ── Monthly contribution stacked bar chart ───────────────────────────────────
+if (monthlyData.length > 0) {
+    new Chart(document.getElementById('monthlyChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: monthlyData.map(d => d.label),
+            datasets: [
+                {
+                    label: 'Versé (€/mois)',
+                    data: monthlyData.map(d => Math.min(Number(d.current), Number(d.target))),
+                    backgroundColor: '#4f6ef7cc',
+                    borderColor: '#4f6ef7',
+                    borderWidth: 1.5,
+                    borderRadius: 0,
+                },
+                {
+                    label: 'Reste à atteindre (€/mois)',
+                    data: monthlyData.map(d => Math.max(0, Number(d.target) - Number(d.current))),
+                    backgroundColor: '#e67e2233',
+                    borderColor: '#e67e22',
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        title: ctx => ctx[0].label,
+                        label: ctx => {
+                            const d = monthlyData[ctx.dataIndex];
+                            if (ctx.datasetIndex === 0) return 'Versé : ' + fmtEur(Math.min(Number(d.current), Number(d.target)));
+                            return 'Reste : ' + fmtEur(Math.max(0, Number(d.target) - Number(d.current)));
+                        },
+                        footer: ctx => 'Objectif total : ' + fmtEur(Number(monthlyData[ctx[0].dataIndex].target))
+                    }
+                }
+            },
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true, ticks: { callback: v => fmtEur(v) } }
+            }
+        }
+    });
+}
+
+// ── Balance goals stacked bar chart ──────────────────────────────────────────
+if (balanceData.length > 0) {
+    new Chart(document.getElementById('balanceSummaryChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: balanceData.map(d => d.label),
+            datasets: [
+                {
+                    label: 'Atteint (€)',
+                    data: balanceData.map(d => Math.min(Number(d.current), Number(d.target))),
+                    backgroundColor: '#27ae60cc',
+                    borderColor: '#27ae60',
+                    borderWidth: 1.5,
+                    borderRadius: 0,
+                },
+                {
+                    label: 'Reste à atteindre (€)',
+                    data: balanceData.map(d => Math.max(0, Number(d.target) - Number(d.current))),
+                    backgroundColor: '#e74c3c33',
+                    borderColor: '#e74c3c',
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        title: ctx => ctx[0].label,
+                        label: ctx => {
+                            const d = balanceData[ctx.dataIndex];
+                            if (ctx.datasetIndex === 0) {
+                                let tip = 'Atteint : ' + fmtEur(Math.min(Number(d.current), Number(d.target)));
+                                if (d.reachDate) tip += ' — Objectif atteint !';
+                                return tip;
+                            }
+                            const remaining = Math.max(0, Number(d.target) - Number(d.current));
+                            let tip = 'Reste : ' + fmtEur(remaining);
+                            if (d.reachDate) tip += ' (Atteinte : ' + d.reachDate.replace('-', '/') + ')';
+                            return tip;
+                        },
+                        footer: ctx => 'Objectif total : ' + fmtEur(Number(balanceData[ctx[0].dataIndex].target))
+                    }
+                }
+            },
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true, ticks: { callback: v => Number(v).toLocaleString('fr-FR') + ' €' } }
+            }
+        }
+    });
+}
+
+// ── Per-goal trend line charts ────────────────────────────────────────────────
+const todayYM = new Date().toISOString().substring(0, 7);
+
+document.querySelectorAll('canvas[data-goal-id]').forEach(canvas => {
+    const goalId = canvas.dataset.goalId;
+    const target = parseFloat(canvas.dataset.target);
+    const points = trendData[goalId] || [];
+    if (points.length === 0) return;
+
+    const labels   = points.map(p => p.date.substring(0, 7));
+    const realData = points.map(p => p.real ? p.balance : null);
+    const projData = points.map(p => p.balance);
+
+    // Linear regression on real entries for the trend line
+    const realPoints = points.filter(p => p.real);
+    let trendLine = null;
+    if (realPoints.length >= 2) {
+        const origin = realPoints[0].date.substring(0, 7);
+        const reg    = linearRegression(
+            realPoints.map(p => monthDiff(origin, p.date.substring(0, 7))),
+            realPoints.map(p => p.balance)
+        );
+        if (reg) {
+            trendLine = {
+                label: 'Tendance',
+                data: labels.map(ym => Math.max(0, reg.intercept + reg.slope * monthDiff(origin, ym))),
+                borderColor: '#e67e22',
+                backgroundColor: 'transparent',
+                fill: false,
+                tension: 0,
+                borderWidth: 2,
+                borderDash: [4, 4],
+                pointRadius: 0,
+                order: 3,
+            };
+        }
+    }
+
+    const datasets = [
+        {
+            label: 'Valeurs réelles',
+            data: realData,
+            borderColor: '#4f6ef7',
+            backgroundColor: '#4f6ef7',
+            fill: false,
+            tension: 0,
+            borderWidth: 2.5,
+            pointRadius: points.map(p => p.real ? 5 : 0),
+            pointBackgroundColor: '#4f6ef7',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            spanGaps: false,
+            order: 1,
+        },
+        {
+            label: 'Projection',
+            data: projData,
+            borderColor: '#93b4fb',
+            backgroundColor: 'transparent',
+            fill: false,
+            tension: 0.3,
+            borderWidth: 1.5,
+            borderDash: [6, 4],
+            pointRadius: 0,
+            spanGaps: true,
+            order: 2,
+        }
+    ];
+    if (trendLine) datasets.push(trendLine);
+
+    // Annotations: horizontal target line + vertical today line
+    const annotations = {
+        targetLine: {
+            type: 'line',
+            scaleID: 'y',
+            value: target,
+            borderColor: '#e74c3c',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            label: {
+                display: true,
+                content: 'Objectif : ' + fmtEur(target),
+                position: 'end',
+                backgroundColor: '#e74c3c',
+                color: '#fff',
+                font: { size: 11 },
+                padding: { x: 6, y: 3 },
+                yAdjust: -12
+            }
+        },
+        todayLine: {
+            type: 'line',
+            scaleID: 'x',
+            value: labels.includes(todayYM) ? todayYM : null,
+            borderColor: '#888',
+            borderWidth: 1.5,
+            borderDash: [4, 4],
+            label: {
+                display: labels.includes(todayYM),
+                content: "Aujourd'hui",
+                position: 'start',
+                backgroundColor: '#555',
+                color: '#fff',
+                font: { size: 10 },
+                padding: { x: 5, y: 3 },
+                yAdjust: -10
+            }
+        }
+    };
+
+    new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'top', labels: { boxWidth: 20, padding: 12 } },
+                annotation: { annotations },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ctx.dataset.label + ' : ' + fmtEur(ctx.parsed.y)
+                    }
+                }
+            },
+            scales: {
+                x: { type: 'category', grid: { display: false }, ticks: { maxTicksLimit: 12, maxRotation: 45 } },
+                y: {
+                    max: target * 1.1,
+                    ticks: { callback: v => Number(v).toLocaleString('fr-FR') + ' €' },
+                    grid: { color: 'rgba(0,0,0,.05)' }
+                }
+            }
+        }
+    });
+});
+
+// ── Edit goal modal ───────────────────────────────────────────────────────────
+function openEditGoal(btn) {
+    document.getElementById('edit-goal-id').value = btn.dataset.goalId;
+    document.getElementById('edit-account-select').value = btn.dataset.accountId;
+    document.getElementById('edit-type-select').value = btn.dataset.type;
+    document.getElementById('edit-amount-input').value = btn.dataset.amount;
+    document.getElementById('modal-edit-goal').style.display = 'flex';
+}
+/*]]>*/
+</script>
+</th:block>
+
+</html>

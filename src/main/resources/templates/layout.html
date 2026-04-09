@@ -6,6 +6,9 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>Budget App</title>
+    <meta name="theme-color" content="#276749"/>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icons/icon-192.svg">
     <link rel="stylesheet" th:href="@{/css/app.css}"/>
 </head>
 <body>
@@ -14,6 +17,7 @@
     <div class="navbar-links">
         <a th:href="@{/budget}" th:classappend="${activePage == 'budget'} ? 'active'">📊 Budget</a>
         <a th:href="@{/savings}" th:classappend="${activePage == 'savings'} ? 'active'">🏦 Épargne</a>
+        <a th:href="@{/goals}" th:classappend="${activePage == 'goals'} ? 'active'">🎯 Objectifs</a>
         <a sec:authorize="hasRole('ADMIN')"
            th:href="@{/admin/categories}"
            th:classappend="${activePage == 'admin'} ? 'active'">⚙️ Administration</a>
@@ -31,5 +35,10 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3/dist/chartjs-plugin-annotation.min.js"></script>
 <th:block th:replace="${scripts}"/>
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+}
+</script>
 </body>
 </html>
