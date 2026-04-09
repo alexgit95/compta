@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout :: layout(~{::content}, ~{::scripts})}">
+<head><title>Épargne</title></head>
+
+<th:block th:fragment="content">
+<div>
+    <div class="flex flex-wrap" style="justify-content:space-between; align-items:flex-end; margin-bottom:1.5rem;">
+        <div>
+            <h1 style="font-size:1.4rem; font-weight:800;">🏦 Épargne</h1>
+            <div class="text-muted">Simulation basée sur les versements mensuels et les valeurs saisies.</div>
+        </div>
+        <!-- Create account modal trigger -->
+        <button sec:authorize="hasAnyRole('ADMIN','EDITOR')"
+                class="btn btn-primary" onclick="document.getElementById('modal-new-account').style.display='flex'">
+            + Nouveau compte
+        </button>
+    </div>
+
+    <!-- Charts section -->
+    <div class="card" th:if="${!#lists.isEmpty(accounts)}">
+        <div class="flex flex-wrap" style="justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <div class="card-title" style="margin:0;">Évolution globale de l'épargne</div>
+            <div class="flex" style="gap:1rem; align-items:center; flex-wrap:wrap;">
+                <div class="form-group" style="margin:0;">
+                    <label style="font-size:.82rem; color:var(--text-muted);">Du</label>
+                    <input type="month" id="rangeFrom" class="form-control" style="padding:.25rem .5rem;"
+                           th:value="${chartDefaultFrom.substring(0,7)}"
+                           th:min="${chartMinDate.substring(0,7)}"
+                           th:max="${chartMaxDate.substring(0,7)}"/>
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label style="font-size:.82rem; color:var(--text-muted);">Au</label>
+                    <input type="month" id="rangeTo" class="form-control" style="padding:.25rem .5rem;"
+                           th:value="${chartDefaultTo.substring(0,7)}"
+                           th:min="${chartMinDate.substring(0,7)}"
+                           th:max="${chartMaxDate.substring(0,7)}"/>
+                </div>
+            </div>
+        </div>
+        <div class="chart-container" style="height:320px;">
+            <canvas id="savingsChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Variation section -->
+    <div class="card" th:if="${!#lists.isEmpty(accounts)}">
+        <div class="flex flex-wrap" style="justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <div class="card-title" style="margin:0;">📈 Variation du solde sur une période</div>
+            <div class="flex" style="gap:1rem; align-items:center; flex-wrap:wrap;">
+                <div class="form-group" style="margin:0;">
+                    <label style="font-size:.82rem; color:var(--text-muted);">Du</label>
+                    <input type="month" id="varFrom" class="form-control" style="padding:.25rem .5rem;"
+                           th:value="${varDefaultFrom.substring(0,7)}"
+                           th:min="${chartMinDate.substring(0,7)}"
+                           th:max="${chartMaxDate.substring(0,7)}"/>
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label style="font-size:.82rem; color:var(--text-muted);">Au</label>
+                    <input type="month" id="varTo" class="form-control" style="padding:.25rem .5rem;"
+                           th:value="${varDefaultTo.substring(0,7)}"
+                           th:min="${chartMinDate.substring(0,7)}"
+                           th:max="${chartMaxDate.substring(0,7)}"/>
+                </div>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table id="variationTable">
+                <thead>
+                <tr>
+                    <th>Compte</th>
+                    <th class="text-right">Solde début</th>
+                    <th class="text-right">Solde fin</th>
+                    <th class="text-right">Variation (€)</th>
+                    <th class="text-right">Variation (%)</th>
+                </tr>
+                </thead>
+                <tbody id="variationBody">
+                </tbody>
+                <tfoot id="variationFoot" style="font-weight:700; border-top:2px solid var(--border);">
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Account cards -->
+    <div th:if="${#lists.isEmpty(accounts)}" class="card" style="text-align:center; color:var(--text-muted);">
+        Aucun compte épargne. Créez votre premier compte ci-dessus.
+    </div>
+
+    <div th:each="account : ${accounts}" class="card">
+        <div class="savings-card-header">
+            <div>
+                <div style="font-size:1.1rem; font-weight:700;" th:text="${account.label}"></div>
+                <div class="savings-meta"
+                     th:text="${#numbers.formatDecimal(account.monthlyDeposit, 1, 2) + ' € / mois'}"></div>
+            </div>
+            <div style="text-align:right;">
+                <div class="savings-value"
+                     th:text="${#numbers.formatDecimal(currentValues.get(account.id), 1, 2) + ' €'}"></div>
+                <div class="text-muted" style="font-size:.8rem;">Valeur estimée aujourd'hui</div>
+                <div th:if="${lastEntries.containsKey(account.id)}"
+                     style="margin-top:.4rem; font-size:.82rem; color:var(--text-muted);">
+                    Dernière valeur connue :
+                    <strong th:text="${#numbers.formatDecimal(lastEntries.get(account.id).balance, 1, 2) + ' €'}"></strong>
+                    le
+                    <strong th:text="${#temporals.format(lastEntries.get(account.id).entryDate, 'dd/MM/yyyy')}"></strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add / update balance -->
+        <form th:action="@{/savings/accounts/{id}/entry(id=${account.id})}" method="post"
+              class="form-inline mt-2" sec:authorize="hasAnyRole('ADMIN','EDITOR')">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <div class="form-group">
+                <label>Actualiser le solde à la date du</label>
+                <input type="date" name="entryDate" class="form-control"
+                       th:value="${#temporals.format(#temporals.createNow(), 'yyyy-MM-dd')}"/>
+            </div>
+            <div class="form-group">
+                <label>Montant réel (€)</label>
+                <input type="number" step="0.01" name="balance" class="form-control" style="width:140px;" required/>
+            </div>
+            <button class="btn btn-success btn-sm">✅ Enregistrer</button>
+        </form>
+
+        <div class="flex mt-2" style="justify-content:flex-end; gap:.5rem;">
+            <a sec:authorize="hasAnyRole('ADMIN','EDITOR')"
+               th:href="@{/savings/accounts/{id}/edit(id=${account.id})}"
+               class="btn btn-outline btn-sm">✏️ Modifier</a>
+            <form sec:authorize="hasRole('ADMIN')"
+                  th:action="@{/savings/accounts/{id}/delete(id=${account.id})}"
+                  method="post" style="display:inline"
+                  onsubmit="return confirm('Supprimer ce compte épargne ?')">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <button class="btn btn-danger btn-sm">🗑️ Supprimer</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- New account modal -->
+    <div id="modal-new-account"
+         style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45);
+                align-items:center; justify-content:center; z-index:200;">
+        <div class="card" style="width:100%; max-width:440px; margin:0;">
+            <div class="card-title">Nouveau compte épargne</div>
+            <form th:action="@{/savings/accounts/save}" th:object="${newAccount}" method="post">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <div class="form-group">
+                    <label>Libellé *</label>
+                    <input type="text" th:field="*{label}" class="form-control" required placeholder="ex. Livret A"/>
+                </div>
+                <div class="form-group">
+                    <label>Versement mensuel (€) *</label>
+                    <input type="number" step="0.01" min="0" th:field="*{monthlyDeposit}"
+                           class="form-control" required placeholder="200.00"/>
+                </div>
+                <div class="flex" style="justify-content:flex-end; gap:.75rem; margin-top:1rem;">
+                    <button type="button" class="btn btn-outline"
+                            onclick="document.getElementById('modal-new-account').style.display='none'">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-primary">Créer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</th:block>
+
+<th:block th:fragment="scripts">
+<script th:inline="javascript">
+/*<![CDATA[*/
+const allChartData = /*[[${chartData}]]*/ {};
+const accounts     = /*[[${accounts}]]*/ [];
+
+// 3 couleurs par compte : valeurs réelles | projection | tendance
+const palettes = [
+    { real: '#4f6ef7', proj: '#93b4fb', trend: '#e67e22' },
+    { real: '#27ae60', proj: '#7dd4a8', trend: '#9b59b6' },
+    { real: '#e74c3c', proj: '#f0938b', trend: '#1abc9c' },
+    { real: '#f39c12', proj: '#f9cb76', trend: '#2980b9' },
+    { real: '#8e44ad', proj: '#c185d4', trend: '#16a085' },
+];
+
+let savingsChart = null;
+const todayYM = new Date().toISOString().substring(0, 7);
+
+function monthDiff(fromYM, toYM) {
+    const [fy, fm] = fromYM.split('-').map(Number);
+    const [ty, tm] = toYM.split('-').map(Number);
+    return (ty - fy) * 12 + (tm - fm);
+}
+
+function linearRegression(xArr, yArr) {
+    const n = xArr.length;
+    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+    for (let i = 0; i < n; i++) {
+        sumX += xArr[i]; sumY += yArr[i];
+        sumXY += xArr[i] * yArr[i]; sumX2 += xArr[i] * xArr[i];
+    }
+    const denom = n * sumX2 - sumX * sumX;
+    if (denom === 0) return { slope: 0, intercept: sumY / n };
+    const slope = (n * sumXY - sumX * sumY) / denom;
+    return { slope, intercept: (sumY - slope * sumX) / n };
+}
+
+function buildChart(fromYM, toYM) {
+    // Labels ordonnés à partir de l'union de tous les points filtrés (évite le désordre des catégories)
+    const labelSet = new Set();
+    for (const account of accounts) {
+        (allChartData[account.id] || []).forEach(p => {
+            const ym = p.date.substring(0, 7);
+            if (ym >= fromYM && ym <= toYM) labelSet.add(ym);
+        });
+    }
+    const labels = Array.from(labelSet).sort();
+    const datasets = buildDatasets(fromYM, toYM, labels);
+    return { labels, datasets };
+}
+
+function buildDatasets(fromYM, toYM, labels) {
+    const datasets = [];
+    let palIdx = 0;
+
+    for (const account of accounts) {
+        const allPoints = allChartData[account.id] || [];
+        const palette   = palettes[palIdx++ % palettes.length];
+
+        // Index complet par mois pour accès rapide
+        const byYM = {};
+        allPoints.forEach(p => { byYM[p.date.substring(0, 7)] = p; });
+
+        const filtered = labels.map(ym => byYM[ym]).filter(Boolean);
+
+        // ── 1. Valeurs réelles + droite les reliant ──────────────────────
+        const realInRange = filtered.filter(p => p.real);
+        datasets.push({
+            label: account.label + ' (valeurs réelles)',
+            data: labels.map(ym => {
+                const p = byYM[ym];
+                return (p && p.real) ? p.balance : null;
+            }),
+            borderColor: palette.real,
+            backgroundColor: palette.real,
+            fill: false,
+            tension: 0,
+            borderWidth: 2.5,
+            pointRadius: labels.map(ym => (byYM[ym] && byYM[ym].real) ? 6 : 0),
+            pointBackgroundColor: palette.real,
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            spanGaps: false,
+            order: 1,
+        });
+
+        // ── 2. Projection mensuelle (versements automatiques) ─── tirets ─
+        datasets.push({
+            label: account.label + ' (projection)',
+            data: labels.map(ym => byYM[ym] ? byYM[ym].balance : null),
+            borderColor: palette.proj,
+            backgroundColor: 'transparent',
+            fill: false,
+            tension: 0.3,
+            borderWidth: 1.5,
+            borderDash: [6, 4],
+            pointRadius: 0,
+            spanGaps: true,
+            order: 2,
+        });
+
+        // ── 3. Tendance linéaire sur 2 ans de données réelles ─── pointillé
+        const now = new Date();
+        const twoYearsAgoYM = `${now.getFullYear() - 2}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const trendSource = allPoints.filter(p => p.real && p.date.substring(0, 7) >= twoYearsAgoYM);
+
+        if (trendSource.length >= 2) {
+            const origin = trendSource[0].date.substring(0, 7);
+            const xArr = trendSource.map(p => monthDiff(origin, p.date.substring(0, 7)));
+            const yArr = trendSource.map(p => p.balance);
+            const reg  = linearRegression(xArr, yArr);
+
+            datasets.push({
+                label: account.label + ' (tendance 2 ans)',
+                data: labels.map(ym => Math.max(0, reg.intercept + reg.slope * monthDiff(origin, ym))),
+                borderColor: palette.trend,
+                backgroundColor: 'transparent',
+                fill: false,
+                tension: 0,
+                borderWidth: 2,
+                borderDash: [3, 3],
+                pointRadius: 0,
+                order: 3,
+            });
+        }
+    }
+    return datasets;
+}
+
+function renderChart() {
+    const fromYM = document.getElementById('rangeFrom').value;
+    const toYM   = document.getElementById('rangeTo').value;
+    if (!fromYM || !toYM || fromYM > toYM) return;
+
+    const { labels, datasets } = buildChart(fromYM, toYM);
+
+    if (savingsChart) {
+        savingsChart.data.labels   = labels;
+        savingsChart.data.datasets = datasets;
+        savingsChart.update();
+    } else {
+        savingsChart = new Chart(document.getElementById('savingsChart'), {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ctx.dataset.label + ' : ' + ctx.parsed.y.toFixed(2) + ' €'
+                        }
+                    },
+                    legend: { labels: { boxWidth: 20, padding: 15 } },
+                    annotation: {
+                        annotations: {
+                            todayLine: {
+                                type: 'line',
+                                scaleID: 'x',
+                                value: labels.includes(todayYM) ? todayYM : null,
+                                borderColor: '#e74c3c',
+                                borderWidth: 2,
+                                borderDash: [6, 3],
+                                label: {
+                                    display: labels.includes(todayYM),
+                                    content: "Aujourd'hui",
+                                    position: 'start',
+                                    backgroundColor: '#e74c3c',
+                                    color: '#fff',
+                                    font: { size: 11 },
+                                    padding: { x: 6, y: 3 },
+                                    yAdjust: -10
+                                }
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { type: 'category', grid: { display: false } },
+                    y: { ticks: { callback: v => v.toFixed(0) + ' €' }, grid: { color: 'rgba(0,0,0,.05)' } }
+                }
+            }
+        });
+    }
+}
+
+// ── Tableau de variation ──────────────────────────────────────────────
+function fmt(n) {
+    return Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+function renderVariation() {
+    const fromYM = document.getElementById('varFrom').value;
+    const toYM   = document.getElementById('varTo').value;
+    if (!fromYM || !toYM || fromYM > toYM) return;
+
+    const tbody = document.getElementById('variationBody');
+    const tfoot = document.getElementById('variationFoot');
+    tbody.innerHTML = '';
+    tfoot.innerHTML = '';
+
+    let totalStart = 0, totalEnd = 0;
+
+    for (const account of accounts) {
+        const byYM = {};
+        (allChartData[account.id] || []).forEach(p => { byYM[p.date.substring(0, 7)] = p; });
+
+        const startBal = byYM[fromYM] ? byYM[fromYM].balance : 0;
+        const endBal   = byYM[toYM]   ? byYM[toYM].balance   : 0;
+        const diff     = endBal - startBal;
+        const pct      = startBal !== 0 ? (diff / startBal * 100) : null;
+        const isPos    = diff >= 0;
+        const color    = isPos ? 'var(--success, #27ae60)' : 'var(--danger, #e74c3c)';
+        const arrow    = isPos ? '▲' : '▼';
+
+        totalStart += startBal;
+        totalEnd   += endBal;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="font-weight:600;">${account.label}</td>
+            <td class="text-right">${fmt(startBal)}</td>
+            <td class="text-right">${fmt(endBal)}</td>
+            <td class="text-right" style="color:${color}; font-weight:600;">${arrow} ${fmt(Math.abs(diff))}</td>
+            <td class="text-right" style="color:${color};">${pct !== null ? (isPos ? '+' : '') + pct.toFixed(1) + ' %' : '—'}</td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    // Ligne total
+    const totalDiff = totalEnd - totalStart;
+    const totalPct  = totalStart !== 0 ? (totalDiff / totalStart * 100) : null;
+    const isPos     = totalDiff >= 0;
+    const color     = isPos ? 'var(--success, #27ae60)' : 'var(--danger, #e74c3c)';
+    const arrow     = isPos ? '▲' : '▼';
+
+    tfoot.innerHTML = `<tr>
+        <td>Total</td>
+        <td class="text-right">${fmt(totalStart)}</td>
+        <td class="text-right">${fmt(totalEnd)}</td>
+        <td class="text-right" style="color:${color};">${arrow} ${fmt(Math.abs(totalDiff))}</td>
+        <td class="text-right" style="color:${color};">${totalPct !== null ? (isPos ? '+' : '') + totalPct.toFixed(1) + ' %' : '—'}</td>
+    </tr>`;
+}
+
+if (accounts.length > 0) {
+    renderChart();
+    renderVariation();
+    document.getElementById('rangeFrom').addEventListener('change', renderChart);
+    document.getElementById('rangeTo').addEventListener('change', renderChart);
+    document.getElementById('varFrom').addEventListener('change', renderVariation);
+    document.getElementById('varTo').addEventListener('change', renderVariation);
+}
+/*]]>*/
+</script>
+</th:block>
+</html>

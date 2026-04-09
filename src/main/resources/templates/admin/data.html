@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout(~{::content}, ~{::scripts})}">
+<head><title>Administration – Import / Export</title></head>
+
+<th:block th:fragment="content">
+<div>
+    <h1 style="font-size:1.4rem; font-weight:800; margin-bottom:1rem;">⚙️ Administration</h1>
+
+    <nav class="sub-nav">
+        <a th:href="@{/admin/categories}">🏷️ Catégories</a>
+        <a th:href="@{/admin/users}">👤 Utilisateurs</a>
+        <a th:href="@{/admin/apikeys}">🔑 Clés API</a>
+        <a th:href="@{/admin/data}" class="active">📦 Import / Export</a>
+    </nav>
+
+    <div class="grid-2">
+        <!-- Export -->
+        <div class="card">
+            <div class="card-title">📤 Exporter les données</div>
+            <p class="text-muted mb-2">
+                Télécharge l'intégralité de la base de données (catégories, dépenses récurrentes,
+                comptes épargne, utilisateurs) au format JSON.
+            </p>
+            <a th:href="@{/admin/data/export}" class="btn btn-primary">
+                ⬇️ Télécharger l'export JSON
+            </a>
+        </div>
+
+        <!-- Import -->
+        <div class="card">
+            <div class="card-title">📥 Importer des données</div>
+            <div class="alert alert-error mb-2" style="font-size:.88rem;">
+                ⚠️ L'import <strong>efface toutes les données existantes</strong>
+                avant d'importer le contenu du fichier JSON.
+            </div>
+            <form th:action="@{/admin/data/import}" method="post"
+                  enctype="multipart/form-data"
+                  onsubmit="return confirm('ATTENTION : toutes les données actuelles seront supprimées. Confirmer l\'import ?')">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <div class="form-group">
+                    <label>Fichier JSON *</label>
+                    <input type="file" name="file" accept=".json" class="form-control" required/>
+                </div>
+                <button type="submit" class="btn btn-danger">
+                    ⬆️ Importer (remplace tout)
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- API export documentation -->
+    <div class="card">
+        <div class="card-title">🔗 Export via API</div>
+        <p class="text-muted mb-2">
+            L'export est également accessible via l'endpoint REST suivant, protégé par clé API.
+        </p>
+        <div style="background:var(--bg); border:1px solid var(--border); border-radius:var(--radius);
+                    padding:1rem; font-family:monospace; font-size:.88rem; line-height:1.8;">
+            <div><strong>GET</strong> <code th:text="|${apiBaseUrl}/api/export|"></code></div>
+            <div style="margin-top:.5rem; color:var(--text-muted);">
+                Header : <code>Authorization: ApiKey &lt;votre-clé&gt;</code><br/>
+                ou : <code>X-Api-Key: &lt;votre-clé&gt;</code>
+            </div>
+        </div>
+        <div class="text-muted mt-2" style="font-size:.82rem;">
+            Gérez vos clés API dans l'onglet <a th:href="@{/admin/apikeys}">🔑 Clés API</a>.
+        </div>
+    </div>
+</div>
+</th:block>
+
+<th:block th:fragment="scripts"></th:block>
+</html>

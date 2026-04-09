@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout(~{::content}, ~{::scripts})}">
+<head><title>Administration – Utilisateurs</title></head>
+
+<th:block th:fragment="content">
+<div>
+    <h1 style="font-size:1.4rem; font-weight:800; margin-bottom:1rem;">⚙️ Administration</h1>
+
+    <nav class="sub-nav">
+        <a th:href="@{/admin/categories}">🏷️ Catégories</a>
+        <a th:href="@{/admin/users}" class="active">👤 Utilisateurs</a>
+        <a th:href="@{/admin/apikeys}">🔑 Clés API</a>
+        <a th:href="@{/admin/data}">📦 Import / Export</a>
+    </nav>
+
+    <!-- New password reveal alert -->
+    <div th:if="${newPassword}" class="alert alert-success">
+        <strong>Utilisateur "<span th:text="${newUsername}"></span>" créé.</strong>
+        Mot de passe initial (à communiquer une seule fois) :
+        <div class="password-box mt-1">
+            <span th:text="${newPassword}" id="newPwdDisplay"></span>
+            <button class="btn btn-outline btn-sm" onclick="copyPassword()">📋 Copier</button>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <!-- Create user form -->
+        <div class="card">
+            <div class="card-title">Créer un utilisateur</div>
+            <form th:action="@{/admin/users/create}" method="post">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <div class="form-group">
+                    <label>Nom d'utilisateur *</label>
+                    <input type="text" name="username" class="form-control" required placeholder="john.doe"/>
+                </div>
+                <div class="form-group">
+                    <label>Rôle *</label>
+                    <select name="role" class="form-control">
+                        <option th:each="r : ${roles}" th:value="${r}" th:text="${r.name()}"></option>
+                    </select>
+                </div>
+                <div class="text-muted mb-2" style="font-size:.85rem;">
+                    Un mot de passe aléatoire sera généré et affiché une seule fois.
+                </div>
+                <button type="submit" class="btn btn-primary">Créer</button>
+            </form>
+        </div>
+
+        <!-- Users list -->
+        <div class="card">
+            <div class="card-title">Utilisateurs</div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Utilisateur</th>
+                        <th>Rôle</th>
+                        <th>Créé le</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="usr : ${users}">
+                        <td th:text="${usr.username}"></td>
+                        <td>
+                            <span th:class="${'badge badge-' + usr.role.name().toLowerCase()}"
+                                  th:text="${usr.role.name()}"></span>
+                        </td>
+                        <td th:text="${#temporals.format(usr.createdAt, 'dd/MM/yyyy')}"></td>
+                        <td>
+                            <!-- Change role -->
+                            <form th:action="@{/admin/users/{id}/role(id=${usr.id})}" method="post"
+                                  style="display:inline-flex; gap:.3rem;">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                <select name="role" class="form-control" style="padding:.25rem .5rem; height:auto;">
+                                    <option th:each="r : ${roles}" th:value="${r}" th:text="${r.name()}"
+                                            th:selected="${r == usr.role}"></option>
+                                </select>
+                                <button class="btn btn-success btn-sm">✅</button>
+                            </form>
+                            <!-- Delete -->
+                            <form th:action="@{/admin/users/{id}/delete(id=${usr.id})}" method="post"
+                                  style="display:inline"
+                                  onsubmit="return confirm('Supprimer cet utilisateur ?')">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                <button class="btn btn-danger btn-sm">🗑️</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+</th:block>
+
+<th:block th:fragment="scripts">
+<script>
+function copyPassword() {
+    const txt = document.getElementById('newPwdDisplay').textContent;
+    navigator.clipboard.writeText(txt).then(() => alert('Mot de passe copié !'));
+}
+</script>
+</th:block>
+</html>

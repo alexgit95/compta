@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout(~{::content}, ~{::scripts})}">
+<head><title>Administration – Clés API</title></head>
+
+<th:block th:fragment="content">
+<div>
+    <h1 style="font-size:1.4rem; font-weight:800; margin-bottom:1rem;">⚙️ Administration</h1>
+
+    <nav class="sub-nav">
+        <a th:href="@{/admin/categories}">🏷️ Catégories</a>
+        <a th:href="@{/admin/users}">👤 Utilisateurs</a>
+        <a th:href="@{/admin/apikeys}" class="active">🔑 Clés API</a>
+        <a th:href="@{/admin/data}">📦 Import / Export</a>
+    </nav>
+
+    <!-- Revealed new key alert -->
+    <div th:if="${newApiKey}" class="alert alert-success">
+        <strong>Clé API créée.</strong>
+        Copiez-la maintenant, elle ne sera plus affichée :
+        <div class="password-box mt-1">
+            <span th:text="${newApiKey}" id="apiKeyDisplay"></span>
+            <button class="btn btn-outline btn-sm" onclick="copyApiKey()">📋 Copier</button>
+        </div>
+        <div class="text-muted mt-1" style="font-size:.82rem;">
+            Utilisation : <code>Authorization: ApiKey &lt;votre-clé&gt;</code>
+            ou <code>X-Api-Key: &lt;votre-clé&gt;</code>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <!-- Create key form -->
+        <div class="card">
+            <div class="card-title">Créer une clé API</div>
+            <form th:action="@{/admin/apikeys/create}" method="post">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <div class="form-group">
+                    <label>Nom / Description *</label>
+                    <input type="text" name="name" class="form-control" required
+                           placeholder="ex. Intégration Home Assistant"/>
+                </div>
+                <div class="form-group">
+                    <label>Validité (jours) *</label>
+                    <input type="number" name="validityDays" class="form-control"
+                           min="1" max="3650" value="365" required/>
+                </div>
+                <button type="submit" class="btn btn-primary">Générer</button>
+            </form>
+        </div>
+
+        <!-- Keys list -->
+        <div class="card">
+            <div class="card-title">Clés déclarées</div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Nom</th>
+                        <th>Préfixe</th>
+                        <th>Expire le</th>
+                        <th>Dernière utilisation</th>
+                        <th>Statut</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(apiKeys)}">
+                        <td colspan="6" style="text-align:center;" class="text-muted">Aucune clé API.</td>
+                    </tr>
+                    <tr th:each="key : ${apiKeys}">
+                        <td th:text="${key.name}"></td>
+                        <td><code th:text="${key.keyPrefix + '...'}"></code></td>
+                        <td th:text="${#temporals.format(key.expiresAt, 'dd/MM/yyyy')}"></td>
+                        <td th:text="${key.lastUsedAt != null ? #temporals.format(key.lastUsedAt, 'dd/MM/yyyy HH:mm') : '-'}"></td>
+                        <td>
+                            <span th:if="${key.revoked}" class="badge" style="background:#fdf2f2; color:var(--danger);">Révoquée</span>
+                            <span th:if="${!key.revoked and key.expiresAt.isBefore(#temporals.createNow())}"
+                                  class="badge" style="background:#fef9e7; color:var(--warning);">Expirée</span>
+                            <span th:if="${!key.revoked and !key.expiresAt.isBefore(#temporals.createNow())}"
+                                  class="badge badge-editor">Active</span>
+                        </td>
+                        <td>
+                            <form th:if="${!key.revoked}"
+                                  th:action="@{/admin/apikeys/{id}/revoke(id=${key.id})}"
+                                  method="post" style="display:inline"
+                                  onsubmit="return confirm('Révoquer cette clé ?')">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                <button class="btn btn-danger btn-sm">🚫 Révoquer</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+</th:block>
+
+<th:block th:fragment="scripts">
+<script>
+function copyApiKey() {
+    const txt = document.getElementById('apiKeyDisplay').textContent;
+    navigator.clipboard.writeText(txt).then(() => alert('Clé copiée !'));
+}
+</script>
+</th:block>
+</html>

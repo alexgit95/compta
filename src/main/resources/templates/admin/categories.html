@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout(~{::content}, ~{::scripts})}">
+<head><title>Administration – Catégories</title></head>
+
+<th:block th:fragment="content">
+<div>
+    <h1 style="font-size:1.4rem; font-weight:800; margin-bottom:1rem;">⚙️ Administration</h1>
+
+    <nav class="sub-nav">
+        <a th:href="@{/admin/categories}" class="active">🏷️ Catégories</a>
+        <a th:href="@{/admin/users}">👤 Utilisateurs</a>
+        <a th:href="@{/admin/apikeys}">🔑 Clés API</a>
+        <a th:href="@{/admin/data}">📦 Import / Export</a>
+    </nav>
+
+    <div class="grid-2">
+        <!-- Create/edit form -->
+        <div class="card">
+            <div class="card-title">Nouvelle catégorie</div>
+            <form th:action="@{/admin/categories/save}" th:object="${category}" method="post">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="hidden" th:field="*{id}"/>
+                <div class="form-group">
+                    <label>Nom *</label>
+                    <input type="text" th:field="*{name}" class="form-control" required placeholder="ex. Logement"/>
+                </div>
+                <div class="form-group">
+                    <label>Icône (emoji) *</label>
+                    <div class="flex">
+                        <input type="text" th:field="*{icon}" id="iconInput" class="form-control"
+                               placeholder="🏠" style="max-width:120px;"
+                               oninput="document.getElementById('iconPreview').textContent = this.value"/>
+                        <span id="iconPreview" class="icon-preview"
+                              th:text="${category.icon}">🏠</span>
+                    </div>
+                    <div class="text-muted mt-1">Collez n'importe quel emoji directement dans ce champ.</div>
+                </div>
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </form>
+        </div>
+
+        <!-- Categories list -->
+        <div class="card">
+            <div class="card-title">Catégories existantes</div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Icône</th>
+                        <th>Nom</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(categories)}">
+                        <td colspan="3" style="text-align:center;" class="text-muted">Aucune catégorie.</td>
+                    </tr>
+                    <tr th:each="cat : ${categories}">
+                        <td class="icon-preview" th:text="${cat.icon}"></td>
+                        <td th:text="${cat.name}"></td>
+                        <td>
+                            <button class="btn btn-outline btn-sm"
+                                    th:data-id="${cat.id}"
+                                    th:data-name="${cat.name}"
+                                    th:data-icon="${cat.icon}"
+                                    onclick="fillEditForm(this)">
+                                ✏️
+                            </button>
+                            <form th:action="@{/admin/categories/{id}/delete(id=${cat.id})}"
+                                  method="post" style="display:inline"
+                                  onsubmit="return confirm('Supprimer cette catégorie ?')">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                <button class="btn btn-danger btn-sm">🗑️</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+</th:block>
+
+<th:block th:fragment="scripts">
+<script>
+function fillEditForm(btn) {
+    const id   = btn.dataset.id;
+    const name = btn.dataset.name;
+    const icon = btn.dataset.icon;
+    document.querySelector('input[name="id"]').value = id;
+    document.querySelector('input[name="name"]').value = name;
+    const iconInput = document.getElementById('iconInput');
+    iconInput.value = icon;
+    document.getElementById('iconPreview').textContent = icon;
+    iconInput.focus();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</th:block>
+</html>
