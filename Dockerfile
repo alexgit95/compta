@@ -45,5 +45,5 @@ EXPOSE 8080
 
 ENTRYPOINT ["java", \
     "-Djava.security.egd=file:/dev/./urandom", \
-    "-Dspring.profiles.active=docker", \
+    "-Dspring.profiles.active=prod", \
     "org.springframework.boot.loader.launch.JarLauncher"]
