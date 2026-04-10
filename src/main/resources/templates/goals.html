@@ -39,10 +39,10 @@
     <!-- ── Sélecteur de période de tendance ─────────────────────────────── -->
     <div class="card" style="margin-bottom:1rem;">
         <form method="get" action="/goals" class="flex" style="align-items:center; gap:1rem; flex-wrap:wrap;">
-            <label style="font-weight:600;">Analyser la tendance sur les dernières</label>
-            <input type="number" name="trendYears" class="form-control" style="width:80px;"
-                   th:value="${trendYears}" min="1" max="20"/>
-            <label>années</label>
+            <label style="font-weight:600;">Analyser la tendance sur les derniers</label>
+            <input type="number" name="trendMonths" class="form-control" style="width:80px;"
+                   th:value="${trendMonths}" min="1" max="240"/>
+            <label>mois</label>
             <button type="submit" class="btn btn-outline btn-sm">Actualiser</button>
         </form>
     </div>
@@ -169,7 +169,7 @@
                               style="display:inline; margin-left:.25rem;"
                               onsubmit="return confirm('Supprimer cet objectif ?')">
                             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                            <input type="hidden" name="trendYears" th:value="${trendYears}"/>
+                            <input type="hidden" name="trendMonths" th:value="${trendMonths}"/>
                             <button class="btn btn-danger btn-sm">🗑️ Supprimer</button>
                         </form>
                     </td>
@@ -188,7 +188,7 @@
             <div class="card-title">Nouvel objectif</div>
             <form th:action="@{/goals/save}" method="post">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                <input type="hidden" name="trendYears" th:value="${trendYears}"/>
+                <input type="hidden" name="trendMonths" th:value="${trendMonths}"/>
                 <div class="form-group">
                     <label>Compte épargne *</label>
                     <select name="savingsAccountId" class="form-control" required>
@@ -230,7 +230,7 @@
             <div class="card-title">Modifier l'objectif</div>
             <form th:action="@{/goals/save}" method="post">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                <input type="hidden" name="trendYears" th:value="${trendYears}"/>
+                <input type="hidden" name="trendMonths" th:value="${trendMonths}"/>
                 <input type="hidden" id="edit-goal-id" name="goalId"/>
                 <div class="form-group">
                     <label>Compte épargne *</label>

@@ -35,10 +35,10 @@ public class GoalService {
 
     /**
      * Estimates the date when a TARGET_BALANCE goal will be reached using a linear
-     * trend computed over the last {@code trendYears} years (average monthly growth).
+     * trend computed over the last {@code trendMonths} months (average monthly growth).
      * Returns empty if the goal is already reached or if the trend is not positive.
      */
-    public Optional<LocalDate> estimatedReachDate(Goal goal, int trendYears) {
+    public Optional<LocalDate> estimatedReachDate(Goal goal, int trendMonths) {
         if (goal.getType() != GoalType.TARGET_BALANCE) return Optional.empty();
 
         LocalDate now = LocalDate.now();
@@ -49,10 +49,10 @@ public class GoalService {
             return Optional.empty(); // already reached
         }
 
-        LocalDate trendStart = now.minusYears(trendYears);
+        LocalDate trendStart = now.minusMonths(trendMonths);
         BigDecimal balanceAtStart = savingsService.projectBalance(goal.getSavingsAccount(), trendStart);
 
-        long totalMonths = (long) trendYears * 12;
+        long totalMonths = trendMonths;
         if (totalMonths <= 0) return Optional.empty();
 
         BigDecimal totalGrowth = currentBalance.subtract(balanceAtStart);
@@ -70,15 +70,15 @@ public class GoalService {
 
     /**
      * Returns monthly chart data for a TARGET_BALANCE goal covering from
-     * {@code trendYears} ago up to the estimated reach date (capped at +10 years).
+     * {@code trendMonths} months ago up to the estimated reach date (capped at +10 years).
      */
-    public List<Map<String, Object>> getBalanceGoalChartData(Goal goal, int trendYears) {
+    public List<Map<String, Object>> getBalanceGoalChartData(Goal goal, int trendMonths) {
         LocalDate now = LocalDate.now();
-        LocalDate from = now.minusYears(trendYears).withDayOfMonth(1);
+        LocalDate from = now.minusMonths(trendMonths).withDayOfMonth(1);
         BigDecimal currentBalance = savingsService.projectBalance(goal.getSavingsAccount(), now);
         boolean alreadyReached = currentBalance.compareTo(goal.getTargetAmount()) >= 0;
 
-        Optional<LocalDate> reachDate = estimatedReachDate(goal, trendYears);
+        Optional<LocalDate> reachDate = estimatedReachDate(goal, trendMonths);
         LocalDate to;
         if (alreadyReached) {
             to = now.plusMonths(6);

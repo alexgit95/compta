@@ -25,7 +25,7 @@ public class GoalController {
     private final SavingsService savingsService;
 
     @GetMapping
-    public String goals(@RequestParam(defaultValue = "3") int trendYears, Model model) {
+    public String goals(@RequestParam(defaultValue = "12") int trendMonths, Model model) {
         List<SavingsAccount> accounts = savingsService.findAllAccounts();
         List<Goal> goals = goalService.findAllGoals();
 
@@ -56,7 +56,7 @@ public class GoalController {
         Map<Long, LocalDate> reachDates = new LinkedHashMap<>();
         for (Goal goal : goals) {
             if (goal.getType() == GoalType.TARGET_BALANCE) {
-                goalService.estimatedReachDate(goal, trendYears)
+                goalService.estimatedReachDate(goal, trendMonths)
                         .ifPresent(d -> reachDates.put(goal.getId(), d));
             }
         }
@@ -93,7 +93,7 @@ public class GoalController {
         Map<Long, List<Map<String, Object>>> trendChartData = new LinkedHashMap<>();
         for (Goal goal : goals) {
             if (goal.getType() == GoalType.TARGET_BALANCE) {
-                trendChartData.put(goal.getId(), goalService.getBalanceGoalChartData(goal, trendYears));
+                trendChartData.put(goal.getId(), goalService.getBalanceGoalChartData(goal, trendMonths));
             }
         }
 
@@ -102,7 +102,7 @@ public class GoalController {
         model.addAttribute("currentValues", currentValues);
         model.addAttribute("alerts", alerts);
         model.addAttribute("reachDates", reachDates);
-        model.addAttribute("trendYears", trendYears);
+        model.addAttribute("trendMonths", trendMonths);
         model.addAttribute("monthlyContribData", monthlyContribData);
         model.addAttribute("balanceGoalData", balanceGoalData);
         model.addAttribute("trendChartData", trendChartData);
@@ -116,7 +116,7 @@ public class GoalController {
                            @RequestParam GoalType type,
                            @RequestParam BigDecimal targetAmount,
                            @RequestParam(required = false) Long goalId,
-                           @RequestParam(defaultValue = "3") int trendYears,
+                           @RequestParam(defaultValue = "36") int trendMonths,
                            RedirectAttributes ra) {
         SavingsAccount account = savingsService.findAllAccounts().stream()
                 .filter(a -> a.getId().equals(savingsAccountId))
@@ -137,16 +137,16 @@ public class GoalController {
         goal.setTargetAmount(targetAmount);
         goalService.saveGoal(goal);
         ra.addFlashAttribute("success", "Objectif enregistré.");
-        return "redirect:/goals?trendYears=" + trendYears;
+        return "redirect:/goals?trendMonths=" + trendMonths;
     }
 
     @PostMapping("/{id}/delete")
     @PreAuthorize("hasAnyRole('ADMIN','EDITOR')")
     public String deleteGoal(@PathVariable Long id,
-                             @RequestParam(defaultValue = "3") int trendYears,
+                             @RequestParam(defaultValue = "36") int trendMonths,
                              RedirectAttributes ra) {
         goalService.deleteGoal(id);
         ra.addFlashAttribute("success", "Objectif supprimé.");
-        return "redirect:/goals?trendYears=" + trendYears;
+        return "redirect:/goals?trendMonths=" + trendMonths;
     }
 }
