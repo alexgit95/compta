@@ -4,7 +4,7 @@ import com.example.demo.dto.ExportDto;
 import com.example.demo.model.*;
 import com.example.demo.repository.CategoryRepository;
 import com.example.demo.service.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
