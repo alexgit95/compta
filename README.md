@@ -18,7 +18,7 @@ Application Spring Boot de gestion de budget personnel et d'épargne, avec inter
   - Gestion des utilisateurs (3 rôles : ADMIN, EDITOR, VIEWER)
   - Clés API avec nom, durée de validité et historique d'utilisation
   - Import / Export JSON de toute la base de données
-- **Sécurité** : login/mot de passe, remember-me 12 mois, protection CSRF
+- **Sécurité** : login/mot de passe, passkeys (WebAuthn / FIDO2), remember-me 12 mois, protection CSRF
 - **API REST** : endpoint `/api/export` protégé par clé API
 
 ## Prérequis
@@ -53,7 +53,7 @@ Un compte administrateur est créé automatiquement au premier démarrage avec l
 
 ### Variables d'environnement requises
 
-| Variable | Description | Defaut |
+| Variable | Description | Défaut |
 |----------|-------------|--------|
 | `ADMIN_USERNAME` | Login admin | `admin` |
 | `ADMIN_PASSWORD` | Mot de passe admin | `admin` |
@@ -61,6 +61,11 @@ Un compte administrateur est créé automatiquement au premier démarrage avec l
 | `SPRING_DATASOURCE_URL` | URL PostgreSQL | — |
 | `SPRING_DATASOURCE_USERNAME` | User PostgreSQL | — |
 | `SPRING_DATASOURCE_PASSWORD` | Mot de passe PostgreSQL | — |
+| `WEBAUTHN_RP_ID` | Domaine WebAuthn (sans port) | `localhost` |
+| `WEBAUTHN_ALLOWED_ORIGINS` | Origines autorisées (virgule-séparées) | `http://localhost:8080` |
+| `WEBAUTHN_RP_NAME` | Nom affiché dans le prompt passkey | `Budget App` |
+
+> ⚠️ **WebAuthn requiert HTTPS en production.** Sur le Raspberry Pi, placez un reverse proxy TLS devant l'application (Traefik ou Nginx + Let's Encrypt) et configurez `WEBAUTHN_RP_ID` avec votre domaine réel.
 
 ### Exemple docker-compose.yml
 
@@ -102,6 +107,28 @@ Le workflow `.github/workflows/docker-build.yml` :
 **Secrets GitHub requis :**
 - `DOCKERHUB_USERNAME`
 - `DOCKERHUB_TOKEN`
+
+## Authentification
+
+### Login / Mot de passe
+
+Formulaire classique accessible sur `/login`. Le compte administrateur est créé automatiquement au premier démarrage.
+
+### Passkeys (WebAuthn / FIDO2)
+
+Les passkeys permettent une connexion sans mot de passe via l'authenticateur du navigateur (Touch ID, Windows Hello, clé FIDO2, etc.).
+
+**Enrôler une clé d'accès :**
+1. Se connecter avec login / mot de passe
+2. Cliquer sur **🔑 Mes clés** dans la barre de navigation
+3. Saisir un libellé pour la clé et cliquer sur *Enregistrer une nouvelle clé*
+
+**Se connecter avec une passkey :**
+- Sur la page `/login`, cliquer sur **🔑 Se connecter avec une clé d'accès (Passkey)**
+
+**Configuration locale** (défaut) : fonctionne sur `http://localhost:8080` sans configuration supplémentaire.
+
+**Configuration production** : nécessite HTTPS et les variables `WEBAUTHN_RP_ID` / `WEBAUTHN_ALLOWED_ORIGINS`.
 
 ## Rôles et droits
 

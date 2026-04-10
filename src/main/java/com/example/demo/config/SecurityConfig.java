@@ -27,6 +27,15 @@ public class SecurityConfig {
     @Value("${app.remember-me.validity-seconds}")
     private int rememberMeValiditySeconds;
 
+    @Value("${app.webauthn.rp-name:Budget App}")
+    private String rpName;
+
+    @Value("${app.webauthn.rp-id:localhost}")
+    private String rpId;
+
+    @Value("${app.webauthn.allowed-origins:http://localhost:8080}")
+    private String allowedOrigins;
+
     @Bean
     public DaoAuthenticationProvider authenticationProvider(UserService userService, PasswordEncoder passwordEncoder) {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userService);
@@ -50,6 +59,11 @@ public class SecurityConfig {
                 .loginPage("/login")
                 .defaultSuccessUrl("/budget", true)
                 .permitAll()
+            )
+            .webAuthn(webAuthn -> webAuthn
+                .rpName(rpName)
+                .rpId(rpId)
+                .allowedOrigins(allowedOrigins.split(","))
             )
             .logout(logout -> logout
                 .logoutSuccessUrl("/login?logout")

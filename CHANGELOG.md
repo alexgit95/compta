@@ -5,6 +5,40 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.3.0] - 2026-04-10
+
+### Ajouté
+
+#### Authentification par clé d'accès (Passkeys / WebAuthn)
+
+- **Dépendance `spring-security-webauthn`** : ajout du module officiel Spring Security 7.0.4 WebAuthn (géré par le BOM Spring Boot 4.0.5, aucune version à épingler).
+- **Schéma de base de données** : deux nouvelles tables (`user_entities`, `user_credentials`) créées automatiquement par Hibernate via les entités JPA `UserEntityRecord` et `UserCredentialRecord`. Le schéma est compatible SQLite (local) et PostgreSQL (production).
+- **`WebAuthnConfig`** : bean de configuration déclarant les repositories JDBC officiels de Spring Security :
+  - `JdbcPublicKeyCredentialUserEntityRepository` (table `user_entities`)
+  - `JdbcUserCredentialRepository` (table `user_credentials`)
+- **`SecurityConfig`** : activation du configurer `.webAuthn()` avec les paramètres `rpName`, `rpId` et `allowedOrigins` injectés depuis les variables d'environnement. Spring Security génère automatiquement les endpoints :
+  - `POST /webauthn/authenticate/options` — challenge d'authentification
+  - `POST /login/webauthn` — vérification de l'assertion
+  - `POST /webauthn/register/options` — challenge d'enrôlement
+  - `POST /webauthn/register` — enregistrement de la clé
+  - `GET /webauthn/register` — page de gestion des clés (générée par Spring Security)
+  - `DELETE /webauthn/register/{credentialId}` — suppression d'une clé
+- **Script client `spring-security-webauthn.js`** : copie du script officiel fourni dans le jar Spring Security, exposé sous `/js/spring-security-webauthn.js`.
+- **Page de connexion** (`login.html`) : ajout du bouton *"🔑 Se connecter avec une clé d'accès (Passkey)"* avec gestion du token CSRF, désactivation gracieuse si le navigateur ne supporte pas WebAuthn.
+- **Navigation** (`layout.html`) : ajout du lien *"🔑 Mes clés"* → `/webauthn/register` pour gérer les clés d'accès enregistrées.
+- **Variables d'environnement WebAuthn** dans `application.properties` et `application-prod.properties` :
+
+  | Variable | Description | Défaut |
+  |---|---|---|
+  | `WEBAUTHN_RP_NAME` | Nom affiché dans le prompt du navigateur | `Budget App` |
+  | `WEBAUTHN_RP_ID` | Domaine de confiance (sans port) | `localhost` |
+  | `WEBAUTHN_ALLOWED_ORIGINS` | Origines autorisées (virgule-séparées) | `http://localhost:8080` |
+
+### Notes de déploiement
+
+> **WebAuthn requiert HTTPS en production** (sauf `localhost`). Sur le Raspberry Pi, configurer un reverse proxy TLS (Traefik ou Nginx + Let's Encrypt) avant d'activer les passkeys.
+> Variables à ajouter dans Portainer : `WEBAUTHN_RP_ID=votre-domaine.com` et `WEBAUTHN_ALLOWED_ORIGINS=https://votre-domaine.com`.
+
 ## [0.2.0] - 2026-04-09
 
 ### Ajouté
