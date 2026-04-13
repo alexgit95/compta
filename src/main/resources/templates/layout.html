@@ -9,12 +9,12 @@
     <meta name="theme-color" content="#276749"/>
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" href="/icons/icon-192.svg">
-    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+    <link rel="stylesheet" th:href="@{/css/app.css(v=2)}"/>
 </head>
 <body>
 <nav class="navbar">
     <div class="navbar-brand">💰 Budget App</div>
-    <button class="navbar-toggle" aria-label="Menu" onclick="document.querySelector('.navbar-links').classList.toggle('open')">☰</button>
+    <button class="navbar-toggle" id="navToggle" aria-label="Menu">☰</button>
     <div class="navbar-links">
         <a th:href="@{/budget}" th:classappend="${activePage == 'budget'} ? 'active'">📊 Budget</a>
         <a th:href="@{/savings}" th:classappend="${activePage == 'savings'} ? 'active'">🏦 Épargne</a>
@@ -43,6 +43,15 @@
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(()=>{});
 }
+document.getElementById('navToggle').addEventListener('click', function() {
+    document.querySelector('.navbar-links').classList.toggle('open');
+});
+// Close menu when a nav link is clicked
+document.querySelectorAll('.navbar-links a, .navbar-links .btn-link').forEach(function(el) {
+    el.addEventListener('click', function() {
+        document.querySelector('.navbar-links').classList.remove('open');
+    });
+});
 </script>
 </body>
 </html>

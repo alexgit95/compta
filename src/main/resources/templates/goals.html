@@ -107,7 +107,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="chart-container" style="height:260px;">
+                <div class="chart-container chart-tall" style="height:380px;">
                     <canvas th:id="'trendChart-' + ${goal.id}"
                             th:data-goal-id="${goal.id}"
                             th:data-target="${goal.targetAmount}"></canvas>
@@ -480,6 +480,15 @@ document.querySelectorAll('canvas[data-goal-id]').forEach(canvas => {
     ];
     if (trendLine) datasets.push(trendLine);
 
+    // Compute Y axis range: 0 → max of all values (data + target) × 1.15
+    const allYVals = [
+        target,
+        ...projData.filter(v => v !== null),
+        ...realData.filter(v => v !== null),
+        ...(trendLine ? trendLine.data.filter(v => v !== null) : [])
+    ];
+    const maxYVal = Math.max(...allYVals) * 1.15;
+
     // Annotations: horizontal target line + vertical today line
     const annotations = {
         targetLine: {
@@ -539,7 +548,8 @@ document.querySelectorAll('canvas[data-goal-id]').forEach(canvas => {
             scales: {
                 x: { type: 'category', grid: { display: false }, ticks: { maxTicksLimit: 12, maxRotation: 45 } },
                 y: {
-                    max: target * 1.1,
+                    min: 0,
+                    max: maxYVal,
                     ticks: { callback: v => Number(v).toLocaleString('fr-FR') + ' €' },
                     grid: { color: 'rgba(0,0,0,.05)' }
                 }
