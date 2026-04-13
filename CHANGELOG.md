@@ -5,6 +5,16 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.3.3] - 2026-04-13
+
+### Amélioré
+
+- **Épargne – modes d'affichage du graphique « Évolution globale »** : ajout de trois boutons de sélection du mode de visualisation directement dans l'entête du graphique :
+  - **Réelles** (mode par défaut) : affiche uniquement la courbe reliant les valeurs réelles saisies.
+  - **+ Projection** : affiche les valeurs réelles et la courbe de projection mensuelle (versements automatiques, tirets).
+  - **+ Tendance** : affiche les valeurs réelles et la droite de tendance linéaire calculée sur les 2 dernières années (pointillés).
+  Le bouton actif est mis en évidence (`btn-primary`), les autres restent en style secondaire (`btn-outline`).
+
 ## [0.3.2] - 2026-04-13
 
 ### Amélioré

@@ -23,6 +23,11 @@
         <div class="flex flex-wrap" style="justify-content:space-between; align-items:center; margin-bottom:1rem;">
             <div class="card-title" style="margin:0;">Évolution globale de l'épargne</div>
             <div class="flex" style="gap:1rem; align-items:center; flex-wrap:wrap;">
+                <div class="flex" style="gap:.5rem; align-items:center;">
+                    <button id="btn-mode-real" class="btn btn-primary btn-sm" onclick="setChartMode('real')">Réelles</button>
+                    <button id="btn-mode-realproj" class="btn btn-outline btn-sm" onclick="setChartMode('realproj')">+ Projection</button>
+                    <button id="btn-mode-realtrend" class="btn btn-outline btn-sm" onclick="setChartMode('realtrend')">+ Tendance</button>
+                </div>
                 <div class="form-group" style="margin:0;">
                     <label style="font-size:.82rem; color:var(--text-muted);">Du</label>
                     <input type="month" id="rangeFrom" class="form-control" style="padding:.25rem .5rem;"
@@ -186,7 +191,16 @@ const palettes = [
 ];
 
 let savingsChart = null;
+let chartMode = 'real';
 const todayYM = new Date().toISOString().substring(0, 7);
+
+function setChartMode(mode) {
+    chartMode = mode;
+    document.getElementById('btn-mode-real').className      = mode === 'real'      ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+    document.getElementById('btn-mode-realproj').className  = mode === 'realproj'  ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+    document.getElementById('btn-mode-realtrend').className = mode === 'realtrend' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+    renderChart();
+}
 
 function monthDiff(fromYM, toYM) {
     const [fy, fm] = fromYM.split('-').map(Number);
@@ -235,8 +249,7 @@ function buildDatasets(fromYM, toYM, labels) {
 
         const filtered = labels.map(ym => byYM[ym]).filter(Boolean);
 
-        // ── 1. Valeurs réelles + droite les reliant ──────────────────────
-        const realInRange = filtered.filter(p => p.real);
+        // ── 1. Valeurs réelles ─ toujours affichées ──────────────────────
         datasets.push({
             label: account.label + ' (valeurs réelles)',
             data: labels.map(ym => {
@@ -252,48 +265,52 @@ function buildDatasets(fromYM, toYM, labels) {
             pointBackgroundColor: palette.real,
             pointBorderColor: '#fff',
             pointBorderWidth: 2,
-            spanGaps: false,
+            spanGaps: true,
             order: 1,
         });
 
         // ── 2. Projection mensuelle (versements automatiques) ─── tirets ─
-        datasets.push({
-            label: account.label + ' (projection)',
-            data: labels.map(ym => byYM[ym] ? byYM[ym].balance : null),
-            borderColor: palette.proj,
-            backgroundColor: 'transparent',
-            fill: false,
-            tension: 0.3,
-            borderWidth: 1.5,
-            borderDash: [6, 4],
-            pointRadius: 0,
-            spanGaps: true,
-            order: 2,
-        });
-
-        // ── 3. Tendance linéaire sur 2 ans de données réelles ─── pointillé
-        const now = new Date();
-        const twoYearsAgoYM = `${now.getFullYear() - 2}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        const trendSource = allPoints.filter(p => p.real && p.date.substring(0, 7) >= twoYearsAgoYM);
-
-        if (trendSource.length >= 2) {
-            const origin = trendSource[0].date.substring(0, 7);
-            const xArr = trendSource.map(p => monthDiff(origin, p.date.substring(0, 7)));
-            const yArr = trendSource.map(p => p.balance);
-            const reg  = linearRegression(xArr, yArr);
-
+        if (chartMode === 'realproj') {
             datasets.push({
-                label: account.label + ' (tendance 2 ans)',
-                data: labels.map(ym => Math.max(0, reg.intercept + reg.slope * monthDiff(origin, ym))),
-                borderColor: palette.trend,
+                label: account.label + ' (projection)',
+                data: labels.map(ym => byYM[ym] ? byYM[ym].balance : null),
+                borderColor: palette.proj,
                 backgroundColor: 'transparent',
                 fill: false,
-                tension: 0,
-                borderWidth: 2,
-                borderDash: [3, 3],
+                tension: 0.3,
+                borderWidth: 1.5,
+                borderDash: [6, 4],
                 pointRadius: 0,
-                order: 3,
+                spanGaps: true,
+                order: 2,
             });
+        }
+
+        // ── 3. Tendance linéaire sur 2 ans de données réelles ─── pointillé
+        if (chartMode === 'realtrend') {
+            const now = new Date();
+            const twoYearsAgoYM = `${now.getFullYear() - 2}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const trendSource = allPoints.filter(p => p.real && p.date.substring(0, 7) >= twoYearsAgoYM);
+
+            if (trendSource.length >= 2) {
+                const origin = trendSource[0].date.substring(0, 7);
+                const xArr = trendSource.map(p => monthDiff(origin, p.date.substring(0, 7)));
+                const yArr = trendSource.map(p => p.balance);
+                const reg  = linearRegression(xArr, yArr);
+
+                datasets.push({
+                    label: account.label + ' (tendance 2 ans)',
+                    data: labels.map(ym => Math.max(0, reg.intercept + reg.slope * monthDiff(origin, ym))),
+                    borderColor: palette.trend,
+                    backgroundColor: 'transparent',
+                    fill: false,
+                    tension: 0,
+                    borderWidth: 2,
+                    borderDash: [3, 3],
+                    pointRadius: 0,
+                    order: 3,
+                });
+            }
         }
     }
     return datasets;
