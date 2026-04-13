@@ -1,5 +1,6 @@
 package com.example.demo.config;
 
+import jakarta.annotation.PostConstruct;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -11,9 +12,9 @@ import org.springframework.stereotype.Component;
 import java.util.Arrays;
 
 /**
- * Aspect de débogage WebAuthn : lorsqu'une BadOriginException est levée lors
- * de la vérification d'une passkey, logue les origines autorisées configurées
- * ainsi que l'origine reçue pour faciliter le diagnostic.
+ * Aspect de débogage WebAuthn : intercepte toutes les opérations WebAuthn
+ * et logue les erreurs (notamment BadOriginException) avec les origines
+ * configurées pour faciliter le diagnostic.
  *
  * <p>Actif dans tous les profils (local, prod, etc.).
  */
@@ -29,52 +30,44 @@ public class WebAuthnDebugAspect {
     @Value("${app.webauthn.allowed-origins:http://localhost:8080}")
     private String allowedOriginsRaw;
 
-    /**
-     * Intercepte tous les appels sur RelyingPartyOperations (registration + authentication).
-     * En cas d'exception de type BadOriginException (Spring Security ou webauthn4j),
-     * log un message d'erreur enrichi avant de relancer l'exception.
-     */
-    @Around("execution(* org.springframework.security.web.webauthn.management.RelyingPartyOperations.*(..))")
-    public Object logBadOrigin(ProceedingJoinPoint pjp) throws Throwable {
-        try {
-            return pjp.proceed();
-        } catch (Throwable ex) {
-            if (isBadOriginException(ex)) {
-                String[] allowed = Arrays.stream(allowedOriginsRaw.split(","))
-                        .map(String::trim)
-                        .toArray(String[]::new);
-                log.error("""
-                        [WebAuthn DEBUG] BadOriginException interceptée sur {}#{}
-                          RP-ID configuré       : {}
-                          Origines autorisées   : {}
-                          Message de l'exception: {}
-                        → Vérifiez que WEBAUTHN_ALLOWED_ORIGINS correspond exactement à \
-                        l'origine du navigateur (scheme + host + port).
-                        """,
-                        pjp.getTarget().getClass().getSimpleName(),
-                        pjp.getSignature().getName(),
-                        rpId,
-                        Arrays.toString(allowed),
-                        buildMessage(ex));
-            }
-            throw ex;
-        }
+    @PostConstruct
+    public void init() {
+        String msg = "[WebAuthn DEBUG] Aspect actif — RP-ID: " + rpId
+                + " | Origines autorisées: " + allowedOriginsRaw;
+        System.err.println(msg);
+        log.error(msg);
     }
 
     /**
-     * Vérifie si l'exception (ou l'une de ses causes) est une BadOriginException,
-     * qu'elle vienne de Spring Security ou de webauthn4j.
+     * Intercepte uniquement les appels sur l'interface RelyingPartyOperations
+     * (registration + authentication). Utiliser l'interface évite que CGLIB
+     * tente de proxifier les classes final/package-private du package WebAuthn.
      */
-    private boolean isBadOriginException(Throwable ex) {
-        Throwable current = ex;
-        for (int depth = 0; depth < 10 && current != null; depth++) {
-            String name = current.getClass().getName();
-            if (name.contains("BadOriginException")) {
-                return true;
-            }
-            current = current.getCause();
+    @Around("execution(* org.springframework.security.web.webauthn.management.RelyingPartyOperations.*(..))")
+    public Object logWebAuthnOps(ProceedingJoinPoint pjp) throws Throwable {
+        try {
+            return pjp.proceed();
+        } catch (Throwable ex) {
+            String[] allowed = Arrays.stream(allowedOriginsRaw.split(","))
+                    .map(String::trim)
+                    .toArray(String[]::new);
+            String fullMsg = buildMessage(ex);
+            boolean isBadOrigin = fullMsg.toLowerCase().contains("origin")
+                    || fullMsg.toLowerCase().contains("badorigin");
+
+            String logLine = "[WebAuthn DEBUG] Exception sur "
+                    + pjp.getTarget().getClass().getSimpleName() + "#" + pjp.getSignature().getName()
+                    + "\n  RP-ID configuré     : " + rpId
+                    + "\n  Origines autorisées : " + Arrays.toString(allowed)
+                    + "\n  Exception           : " + fullMsg
+                    + (isBadOrigin ? "\n  → BadOriginException détectée : vérifiez scheme+host+port" : "");
+
+            // Double sortie : stderr (toujours visible) + logger ERROR
+            System.err.println(logLine);
+            log.error(logLine);
+
+            throw ex;
         }
-        return false;
     }
 
     /**
