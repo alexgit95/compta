@@ -36,8 +36,35 @@
     <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
     <th:block th:replace="${content}"/>
 </div>
+
+<!-- Overlay plein écran générique (tous les graphiques) -->
+<div id="chart-fullscreen-overlay"
+     style="display:none; position:fixed; inset:0; background:rgba(10,12,20,.97);
+            z-index:9999; flex-direction:column; padding:0; overflow:hidden;">
+    <div style="position:fixed; top:.6rem; left:50%; transform:translateX(-50%); display:flex; gap:.5rem; z-index:10000; align-items:center;">
+        <button onclick="if(_fsChart)_fsChart.resetZoom()" title="Réinitialiser le zoom"
+                style="background:rgba(255,255,255,.18); border:2px solid rgba(255,255,255,.38);
+                       color:#fff; font-size:.8rem; padding:.3rem .75rem;
+                       border-radius:1rem; cursor:pointer; touch-action:manipulation;">🔍 Reset</button>
+        <span style="color:rgba(255,255,255,.5); font-size:.75rem;">molette / pincer pour zoomer · glisser pour naviguer</span>
+    </div>
+    <button onclick="closeChartFullscreen()" aria-label="Fermer le plein écran"
+            style="position:fixed; top:.75rem; right:.75rem;
+                   background:rgba(255,255,255,.18); border:2px solid rgba(255,255,255,.45);
+                   color:#fff; font-size:1.4rem; width:2.75rem; height:2.75rem;
+                   border-radius:50%; cursor:pointer; display:flex; align-items:center;
+                   justify-content:center; z-index:10000; line-height:1;
+                   touch-action:manipulation;">✕</button>
+    <div style="width:100%; height:100%; padding:1rem; box-sizing:border-box; padding-top:3.5rem;">
+        <canvas id="fsCanvas"></canvas>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3/dist/chartjs-plugin-annotation.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2/dist/chartjs-plugin-zoom.min.js"></script>
+<script>const fsChartBuilders = {}; let _fsChart = null;</script>
 <th:block th:replace="${scripts}"/>
 <script>
 if ('serviceWorker' in navigator) {
@@ -52,6 +79,21 @@ document.querySelectorAll('.navbar-links a, .navbar-links .btn-link').forEach(fu
         document.querySelector('.navbar-links').classList.remove('open');
     });
 });
+function openChartFullscreen(id) {
+    var builder = fsChartBuilders[id];
+    if (!builder) return;
+    var overlay = document.getElementById('chart-fullscreen-overlay');
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    if (_fsChart) { _fsChart.destroy(); _fsChart = null; }
+    _fsChart = builder(document.getElementById('fsCanvas'));
+}
+function closeChartFullscreen() {
+    document.getElementById('chart-fullscreen-overlay').style.display = 'none';
+    document.body.style.overflow = '';
+    if (_fsChart) { _fsChart.destroy(); _fsChart = null; }
+}
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeChartFullscreen(); });
 </script>
 </body>
 </html>

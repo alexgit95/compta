@@ -58,7 +58,11 @@
         <div class="text-muted" style="margin-bottom:1rem; font-size:.88rem;">
             Versement mensuel actuel comparé à l'objectif fixé, par compte.
         </div>
-        <div class="chart-container" style="height:300px;">
+        <div class="chart-container" style="height:300px; cursor:pointer; position:relative;"
+             onclick="openChartFullscreen('monthlyChart')" title="Cliquez pour agrandir en plein écran">
+            <span style="position:absolute;top:.4rem;right:.5rem;opacity:.45;pointer-events:none;line-height:1;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            </span>
             <canvas id="monthlyChart"></canvas>
         </div>
     </div>
@@ -70,7 +74,11 @@
             Solde actuel comparé à l'objectif, par compte.
         </div>
         <!-- Graphique de synthèse -->
-        <div class="chart-container" style="height:300px; margin-bottom:2rem;">
+        <div class="chart-container" style="height:300px; margin-bottom:2rem; cursor:pointer; position:relative;"
+             onclick="openChartFullscreen('balanceSummaryChart')" title="Cliquez pour agrandir en plein écran">
+            <span style="position:absolute;top:.4rem;right:.5rem;opacity:.45;pointer-events:none;line-height:1;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            </span>
             <canvas id="balanceSummaryChart"></canvas>
         </div>
 
@@ -107,7 +115,12 @@
                         </div>
                     </div>
                 </div>
-                <div class="chart-container chart-tall" style="height:380px;">
+                <div class="chart-container chart-tall" style="height:380px; cursor:pointer; position:relative;"
+                     th:data-chart-id="|trendChart-${goal.id}|"
+                     onclick="openChartFullscreen(this.dataset.chartId)" title="Cliquez pour agrandir en plein écran">
+                    <span style="position:absolute;top:.4rem;right:.5rem;opacity:.45;pointer-events:none;line-height:1;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                    </span>
                     <canvas th:id="'trendChart-' + ${goal.id}"
                             th:data-goal-id="${goal.id}"
                             th:data-target="${goal.targetAmount}"></canvas>
@@ -305,7 +318,7 @@ function linearRegression(xArr, yArr) {
 
 // ── Monthly contribution stacked bar chart ───────────────────────────────────
 if (monthlyData.length > 0) {
-    new Chart(document.getElementById('monthlyChart').getContext('2d'), {
+    const makeMonthlyConfig = (enableZoom) => ({
         type: 'bar',
         data: {
             labels: monthlyData.map(d => d.label),
@@ -343,19 +356,25 @@ if (monthlyData.length > 0) {
                         },
                         footer: ctx => 'Objectif total : ' + fmtEur(Number(monthlyData[ctx[0].dataIndex].target))
                     }
-                }
+                },
+                ...(enableZoom ? { zoom: {
+                    zoom: { wheel: { enabled: true, speed: 0.1 }, pinch: { enabled: true }, mode: 'x' },
+                    pan: { enabled: true, mode: 'x' }
+                }} : {})
             },
             scales: {
                 x: { stacked: true },
-                y: { stacked: true, beginAtZero: true, ticks: { callback: v => fmtEur(v) } }
+                y: { stacked: true, beginAtZero: true, ticks: { callback: v => fmtEur(v), color: enableZoom ? '#ccc' : undefined } }
             }
         }
     });
+    new Chart(document.getElementById('monthlyChart').getContext('2d'), makeMonthlyConfig(false));
+    fsChartBuilders['monthlyChart'] = canvas => new Chart(canvas, makeMonthlyConfig(true));
 }
 
 // ── Balance goals stacked bar chart ──────────────────────────────────────────
 if (balanceData.length > 0) {
-    new Chart(document.getElementById('balanceSummaryChart').getContext('2d'), {
+    const makeBalanceConfig = (enableZoom) => ({
         type: 'bar',
         data: {
             labels: balanceData.map(d => d.label),
@@ -400,14 +419,20 @@ if (balanceData.length > 0) {
                         },
                         footer: ctx => 'Objectif total : ' + fmtEur(Number(balanceData[ctx[0].dataIndex].target))
                     }
-                }
+                },
+                ...(enableZoom ? { zoom: {
+                    zoom: { wheel: { enabled: true, speed: 0.1 }, pinch: { enabled: true }, mode: 'x' },
+                    pan: { enabled: true, mode: 'x' }
+                }} : {})
             },
             scales: {
-                x: { stacked: true },
-                y: { stacked: true, beginAtZero: true, ticks: { callback: v => Number(v).toLocaleString('fr-FR') + ' €' } }
+                x: { stacked: true, ticks: { color: enableZoom ? '#ccc' : undefined } },
+                y: { stacked: true, beginAtZero: true, ticks: { callback: v => Number(v).toLocaleString('fr-FR') + ' €', color: enableZoom ? '#ccc' : undefined } }
             }
         }
     });
+    new Chart(document.getElementById('balanceSummaryChart').getContext('2d'), makeBalanceConfig(false));
+    fsChartBuilders['balanceSummaryChart'] = canvas => new Chart(canvas, makeBalanceConfig(true));
 }
 
 // ── Per-goal trend line charts ────────────────────────────────────────────────
@@ -529,7 +554,7 @@ document.querySelectorAll('canvas[data-goal-id]').forEach(canvas => {
         }
     };
 
-    new Chart(canvas.getContext('2d'), {
+    const makeTrendConfig = (enableZoom) => ({
         type: 'line',
         data: { labels, datasets },
         options: {
@@ -543,19 +568,26 @@ document.querySelectorAll('canvas[data-goal-id]').forEach(canvas => {
                     callbacks: {
                         label: ctx => ctx.dataset.label + ' : ' + fmtEur(ctx.parsed.y)
                     }
-                }
+                },
+                ...(enableZoom ? { zoom: {
+                    zoom: { wheel: { enabled: true, speed: 0.1 }, pinch: { enabled: true }, mode: 'x' },
+                    pan: { enabled: true, mode: 'x' },
+                    limits: { x: { minRange: 2 } }
+                }} : {})
             },
             scales: {
-                x: { type: 'category', grid: { display: false }, ticks: { maxTicksLimit: 12, maxRotation: 45 } },
+                x: { type: 'category', grid: { display: false }, ticks: { maxTicksLimit: 12, maxRotation: 45, color: enableZoom ? '#ccc' : undefined } },
                 y: {
                     min: 0,
                     max: maxYVal,
-                    ticks: { callback: v => Number(v).toLocaleString('fr-FR') + ' €' },
-                    grid: { color: 'rgba(0,0,0,.05)' }
+                    ticks: { callback: v => Number(v).toLocaleString('fr-FR') + ' €', color: enableZoom ? '#ccc' : undefined },
+                    grid: { color: enableZoom ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.05)' }
                 }
             }
         }
     });
+    new Chart(canvas.getContext('2d'), makeTrendConfig(false));
+    fsChartBuilders['trendChart-' + goalId] = c => new Chart(c, makeTrendConfig(true));
 });
 
 // ── Edit goal modal ───────────────────────────────────────────────────────────

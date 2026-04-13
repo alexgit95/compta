@@ -5,6 +5,20 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.3.4] - 2026-04-13
+
+### Ajouté
+
+- **Plein écran sur les graphiques** : tous les graphiques de l’application (Épargne, Budget, Objectifs) sont désormais cliquables. Un clic sur le graphique l'affiche en plein écran sur fond sombre, idéal pour une consultation mobile.
+  - Icône d’agrandissement (↗↙) affichée en incrustation en haut à droite de chaque graphique pour indiquer l’interaction possible.
+  - Bouton **×** (coin haut-droit) et touche **Échap** pour quitter le plein écran.
+- **Zoom / défilement en plein écran** : en mode plein écran, il est possible de zoomer sur l’axe horizontal (temps) et de naviguer dans la période :
+  - **Molette de souris** : zoom avant / arrière.
+  - **Pincer (touch)** : zoom à deux doigts sur mobile / tablette.
+  - **Glisser** : déplacer la vue après zoom.
+  - Bouton **🔍 Reset** pour revenir à la vue complète.
+- **Infrastructure partagée** : l’overlay plein écran, les scripts `hammerjs` et `chartjs-plugin-zoom` sont désormais chargés une seule fois dans `layout.html`. Chaque page enregistre son ou ses graphiques via `fsChartBuilders`.
+
 ## [0.3.3] - 2026-04-13
 
 ### Amélioré
