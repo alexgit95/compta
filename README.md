@@ -61,11 +61,17 @@ Un compte administrateur est créé automatiquement au premier démarrage avec l
 | `SPRING_DATASOURCE_URL` | URL PostgreSQL | — |
 | `SPRING_DATASOURCE_USERNAME` | User PostgreSQL | — |
 | `SPRING_DATASOURCE_PASSWORD` | Mot de passe PostgreSQL | — |
-| `WEBAUTHN_RP_ID` | Domaine WebAuthn (sans port) | `localhost` |
-| `WEBAUTHN_ALLOWED_ORIGINS` | Origines autorisées (virgule-séparées) | `http://localhost:8080` |
+| `WEBAUTHN_RP_ID` | Domaine WebAuthn **sans port** (ex: `budget.mondomaine.com`) | `localhost` |
+| `WEBAUTHN_ALLOWED_ORIGINS` | Origines autorisées virgule-séparées (ex: `https://budget.mondomaine.com`) | `http://localhost:8080` |
 | `WEBAUTHN_RP_NAME` | Nom affiché dans le prompt passkey | `Budget App` |
 
 > ⚠️ **WebAuthn requiert HTTPS en production.** Sur le Raspberry Pi, placez un reverse proxy TLS devant l'application (Traefik ou Nginx + Let's Encrypt) et configurez `WEBAUTHN_RP_ID` avec votre domaine réel.
+>
+> ⚠️ **Erreur `'rp.id' cannot be used with the current origin`** : cette erreur signifie que `WEBAUTHN_RP_ID` ne correspond pas au domaine depuis lequel vous accédez à l'application. `WEBAUTHN_RP_ID` doit être exactement le nom d'hôte (sans `https://` ni port), et `WEBAUTHN_ALLOWED_ORIGINS` doit contenir l'URL complète avec le schéma. Exemple pour `budget.mondomaine.com` :
+> ```
+> WEBAUTHN_RP_ID=budget.mondomaine.com
+> WEBAUTHN_ALLOWED_ORIGINS=https://budget.mondomaine.com
+> ```
 
 ### Exemple docker-compose.yml
 

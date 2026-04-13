@@ -5,7 +5,23 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
-## [0.3.0] - 2026-04-10
+## [0.3.2] - 2026-04-13
+
+### Amélioré
+
+- **PWA / Mobile – barre de navigation responsive** : ajout d'un bouton hamburger (☰) dans la barre de navigation. Sur les écrans ≤ 768 px, les liens sont masqués par défaut et s'affichent en colonne plein-largeur au clic, supprimant le défilement horizontal.
+- **Graphiques objectifs – hauteur augmentée** : les graphiques de tendance par objectif (courbes Valeurs réelles, Projection, Tendance) passent de `260 px` à `380 px` de hauteur (`420 px` sur mobile) pour améliorer la lisibilité des courbes.
+- **Graphiques objectifs – axe Y normalisé** : l'axe Y de chaque graphique de tendance (section « Objectifs de solde ») démarre maintenant à `0` et se termine à la valeur maximale présente dans le graphique (soldes réels, projection, tendance et ligne d'objectif) multipliée par `1,15`, garantissant une vue lisible et cohérente quelle que soit l'amplitude des données.
+
+## [0.3.1] - 2026-04-13
+
+### Corrigé
+
+- **Bouton déconnexion** : le bouton de la barre de navigation affichait le nom de l'utilisateur connecté ; il affiche désormais « Déconnexion » pour une meilleure lisibilité.
+- **Graphique budget** : correction d'une erreur JavaScript `Uncaught SyntaxError: Unexpected token '{'` due à la sérialisation Thymeleaf des clés `LocalDate` (sérialisées en objet Java au lieu d'une chaîne ISO). Les clés de la map sont désormais converties en `String` (`LocalDate.toString()`) dans le contrôleur avant passage au modèle.
+- **Passkey / WebAuthn – domaine configurable via Portainer** : la variable d'environnement `WEBAUTHN_RP_ID` (déjà supportée) est désormais documentée explicitement comme paramètre obligatoire à configurer dans Portainer pour corriger l'erreur `'rp.id' cannot be used with the current origin`. Voir le README pour les détails de configuration.
+
+
 
 ### Ajouté
 
