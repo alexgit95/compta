@@ -9,7 +9,11 @@ et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/)
 
 ### Corrigé
 
-- **WebAuthn / Passkeys PostgreSQL** : correction du type de colonne pour les données binaires dans la table `user_credentials`. Les colonnes `public_key`, `attestation_object` et `attestation_client_data_json` sont maintenant explicitement définies comme `bytea` au lieu de `oid`, ce qui élimine l'erreur SQL lors de l'enregistrement d'une clé de passage.
+- **WebAuthn / Passkeys PostgreSQL** : 
+  - Correction du type de colonne pour les données binaires dans la table `user_credentials`. Les colonnes `public_key`, `attestation_object` et `attestation_client_data_json` sont maintenant explicitement définies comme `bytea` au lieu de `oid`.
+  - Ajout de **Flyway** pour gérer les migrations de base de données. Les migrations SQL sont désormais versionnées et appliquées de manière contrôlée.
+  - Configuration en production : `spring.jpa.hibernate.ddl-auto=validate` (Hibernaate valide juste le schéma, Flyway gère les migrations).
+  - Migration V1 : script SQL pour corriger les colonnes existantes de type `oid` et les convertir en `bytea`.
 
 ## [0.3.4] - 2026-04-13
 
