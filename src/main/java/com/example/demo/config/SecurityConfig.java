@@ -1,4 +1,4 @@
-package com.example.demo.config;
+rpackage com.example.demo.config;
 
 import com.example.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
