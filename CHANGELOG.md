@@ -11,15 +11,6 @@ et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/)
 
 - **WebAuthn / Passkeys PostgreSQL** : correction du type de colonne pour les données binaires dans la table `user_credentials`. Les colonnes `public_key`, `attestation_object` et `attestation_client_data_json` sont maintenant explicitement définies comme `bytea` au lieu de `oid`.
 
-### Ajouté
-
-- **Maintenance WebAuthn depuis l'application** : 
-  - Nouveau service `WebAuthnMaintenanceService` pour gérer les opérations de réinitialisation des tables WebAuthn.
-  - Endpoint admin `/admin/webauthn/clear` pour supprimer tous les données WebAuthn sans redémarrage.
-  - Variable d'environnement `RESET_WEBAUTHN_TABLES` pour réinitialiser les tables au démarrage (utile en Docker/production).
-  - Interface d'administration (onglet Import/Export) avec bouton de réinitialisation WebAuthn.
-  - **Pour Docker** : définir `RESET_WEBAUTHN_TABLES=true` au démarrage, puis `false` après redémarrage pour éviter une réinitialisation à chaque démarrage.
-
 ## [0.3.4] - 2026-04-13
 
 ### Ajouté

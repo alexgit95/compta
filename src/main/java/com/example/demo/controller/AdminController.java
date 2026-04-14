@@ -27,7 +27,6 @@ public class AdminController {
     private final UserService userService;
     private final ApiKeyService apiKeyService;
     private final ImportExportService importExportService;
-    private final WebAuthnMaintenanceService webAuthnMaintenanceService;
     private final ObjectMapper objectMapper;
 
     // --- Categories ---
@@ -136,19 +135,6 @@ public class AdminController {
         ExportDto dto = objectMapper.readValue(file.getInputStream(), ExportDto.class);
         importExportService.importData(dto);
         ra.addFlashAttribute("success", "Import effectué avec succès.");
-        return "redirect:/admin/data";
-    }
-
-    // --- WebAuthn Maintenance ---
-
-    @PostMapping("/webauthn/clear")
-    public String clearWebAuthnData(RedirectAttributes ra) {
-        try {
-            webAuthnMaintenanceService.clearWebAuthnData();
-            ra.addFlashAttribute("success", "Données WebAuthn supprimées. Les utilisateurs devront réenregistrer leurs clés.");
-        } catch (Exception e) {
-            ra.addFlashAttribute("error", "Erreur lors de la suppression : " + e.getMessage());
-        }
         return "redirect:/admin/data";
     }
 }

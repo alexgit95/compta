@@ -3,7 +3,6 @@ package com.example.demo.config;
 import com.example.demo.model.Role;
 import com.example.demo.model.User;
 import com.example.demo.repository.UserRepository;
-import com.example.demo.service.WebAuthnMaintenanceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,7 +17,6 @@ public class DataInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final WebAuthnMaintenanceService webAuthnMaintenanceService;
 
     @Value("${app.admin.username}")
     private String adminUsername;
@@ -28,10 +26,6 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        // Reset WebAuthn tables if environment variable is set
-        webAuthnMaintenanceService.resetWebAuthnTablesIfNeeded();
-
-        // Create default admin user if it doesn't exist
         if (!userRepository.existsByUsername(adminUsername)) {
             User admin = new User();
             admin.setUsername(adminUsername);
