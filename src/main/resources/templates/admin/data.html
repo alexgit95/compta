@@ -67,6 +67,22 @@
             Gérez vos clés API dans l'onglet <a th:href="@{/admin/apikeys}">🔑 Clés API</a>.
         </div>
     </div>
+
+    <!-- WebAuthn Maintenance -->
+    <div class="card">
+        <div class="card-title">🔐 Maintenance WebAuthn / Clés de passage</div>
+        <p class="text-muted mb-2">
+            En cas de problème avec les clés de passage (erreur lors de l'enregistrement),
+            vous pouvez effacer toutes les données WebAuthn. Les utilisateurs devront réenregistrer leurs clés.
+        </p>
+        <form th:action="@{/admin/webauthn/clear}" method="post"
+              onsubmit="return confirm('ATTENTION : toutes les clés de passage seront supprimées. Les utilisateurs devront les réenregistrer. Confirmer ?')">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <button type="submit" class="btn btn-warning">
+                🔄 Réinitialiser les données WebAuthn
+            </button>
+        </form>
+    </div>
 </div>
 </th:block>
 
