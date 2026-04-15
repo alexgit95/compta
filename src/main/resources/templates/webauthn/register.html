@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout :: layout(~{::content}, ~{::scripts})}">
+<head><title>Mes clés d'accès</title></head>
+
+<!-- ============================================================
+     PAGE CONTENT
+     ============================================================ -->
+<th:block th:fragment="content">
+<div>
+
+    <!-- Page header -->
+    <div class="flex flex-wrap" style="justify-content:space-between; align-items:flex-end; margin-bottom:1.5rem;">
+        <div>
+            <h1 style="font-size:1.4rem; font-weight:800;">🔑 Mes clés d'accès (Passkeys)</h1>
+            <div style="color:var(--text-muted); font-size:.9rem; margin-top:.25rem;">
+                Connectez-vous sans mot de passe grâce à la biométrie ou au code PIN de vos appareils.
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Success / Error banners (managed by spring-security-webauthn.js) ── -->
+    <div id="success" class="alert alert-success" style="display:none;">
+        ✅ Clé d'accès enregistrée avec succès !
+    </div>
+    <div id="error" class="alert alert-error" style="display:none;"></div>
+
+    <!-- ── Register a new passkey ── -->
+    <div class="card">
+        <div class="card-title">➕ Enregistrer une nouvelle clé d'accès</div>
+        <p style="color:var(--text-muted); font-size:.9rem; margin-bottom:1rem;">
+            Donnez un nom à votre clé pour la retrouver facilement (ex&nbsp;: <em>Galaxy A55</em>,
+            <em>Pixel 9a</em>, <em>Yubikey</em>…).
+        </p>
+        <div class="form-inline" style="align-items:flex-end;">
+            <div class="form-group" style="flex:1; min-width:220px;">
+                <label for="label">Nom de la clé</label>
+                <input id="label" type="text" class="form-control"
+                       placeholder="Ex : Galaxy A55"
+                       maxlength="64" autocomplete="off"/>
+            </div>
+            <div class="form-group" style="padding-bottom:1rem;">
+                <button id="register" type="button" class="btn btn-primary">
+                    🔑 Enregistrer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Existing passkeys ── -->
+    <div class="card">
+        <div class="card-title">🗂️ Clés enregistrées</div>
+
+        <!-- Empty state -->
+        <div th:if="${#lists.isEmpty(passkeys)}"
+             style="text-align:center; color:var(--text-muted); padding:2rem 1rem; font-size:.95rem;">
+            Aucune clé d'accès enregistrée.<br/>
+            Utilisez le formulaire ci-dessus pour en ajouter une.
+        </div>
+
+        <!-- Passkeys table -->
+        <div th:if="${!#lists.isEmpty(passkeys)}" class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Créée le</th>
+                    <th>Dernière utilisation</th>
+                    <th style="width:1%;white-space:nowrap;">Action</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="passkey : ${passkeys}">
+                    <td>
+                        <span style="margin-right:.4rem;">🔑</span>
+                        <strong th:text="${passkey.label}">Ma clé</strong>
+                    </td>
+                    <td th:text="${passkey.created}">01/01/2024 00:00</td>
+                    <td th:text="${passkey.lastUsed}">01/01/2024 00:00</td>
+                    <td>
+                        <form class="delete-form"
+                              th:action="@{/webauthn/register/{id}(id=${passkey.credentialIdBase64Url})}"
+                              method="post">
+                            <button type="submit" class="btn btn-danger btn-sm">
+                                🗑️ Supprimer
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Info block -->
+    <div class="card" style="border-left:4px solid var(--primary); background:#f8f9ff;">
+        <div style="display:flex; gap:.75rem; align-items:flex-start;">
+            <span style="font-size:1.4rem;">ℹ️</span>
+            <div style="font-size:.9rem; color:var(--text-muted); line-height:1.6;">
+                <strong style="color:var(--text);">À propos des clés d'accès</strong><br/>
+                Les passkeys remplacent votre mot de passe par une authentification biométrique
+                (empreinte digitale, reconnaissance faciale) ou un code PIN stocké localement sur
+                votre appareil. Elles ne peuvent pas être volées via un phishing.<br/>
+                <a href="https://www.passkeys.com" target="_blank" rel="noopener"
+                   style="color:var(--primary); text-decoration:none;">
+                    En savoir plus →
+                </a>
+            </div>
+        </div>
+    </div>
+
+</div>
+</th:block>
+
+<!-- ============================================================
+     SCRIPTS
+     ============================================================ -->
+<th:block th:fragment="scripts">
+<script th:src="@{/js/spring-security-webauthn.js}"></script>
+<script th:inline="javascript">
+    (function () {
+        /*[- CSRF & context path -]*/
+        var csrfToken  = /*[[${_csrf.token}]]*/ '';
+        var csrfHeader = /*[[${_csrf.headerName}]]*/ '';
+        var headers = {};
+        headers[csrfHeader] = csrfToken;
+        var contextPath = /*[[${contextPath}]]*/ '';
+
+        if (!window.setupRegistration) {
+            document.getElementById('register').disabled = true;
+            document.getElementById('register').title = 'WebAuthn non supporté dans ce navigateur';
+            return;
+        }
+
+        window.setupRegistration(headers, contextPath, {
+            getRegisterButton: function () { return document.getElementById('register'); },
+            getLabelInput:     function () { return document.getElementById('label'); },
+            getError:          function () { return document.getElementById('error'); },
+            getSuccess:        function () { return document.getElementById('success'); },
+            getDeleteForms:    function () { return document.querySelectorAll('.delete-form'); }
+        });
+    })();
+</script>
+</th:block>
+
+</html>

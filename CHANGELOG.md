@@ -5,6 +5,32 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.3.7]
+
+### Ajouté
+
+- **Alerte épargne non mise à jour** : un bandeau d'avertissement s'affiche en haut de l'onglet Épargne lorsqu'un ou plusieurs comptes n'ont pas reçu de nouvelle saisie depuis plus de 30 jours.
+  - La liste des comptes concernés est affichée avec la date de la dernière saisie (ou « aucune saisie » si aucune entrée n'existe).
+  - Calcul réalisé côté serveur dans `SavingsController` via un attribut `staleAccounts` passé au modèle Thymeleaf.
+  - Affichage conditionnel dans `savings.html` uniquement lorsque la liste est non vide.
+
+## [0.3.6]
+
+### Ajouté
+
+- **Gestion du fuseau horaire** : le fuseau horaire de l'application est maintenant configurable via la variable d'environnement `APP_TIMEZONE` (format IANA, ex: `Europe/Paris`). Cela corrige le décalage horaire constaté sur les données (heure affichée vs heure de saisie réelle).
+  - `DemoApplication.java` : `TimeZone.setDefault` appliqué au démarrage de la JVM depuis `APP_TIMEZONE`.
+  - `application.properties` : `spring.jackson.time-zone` et `spring.jpa.properties.hibernate.jdbc.time_zone` positionnés sur `${APP_TIMEZONE:Europe/Paris}`.
+  - `Dockerfile` : variable `ENV APP_TIMEZONE=Europe/Paris` et argument JVM `-Duser.timezone=Europe/Paris` ajoutés.
+  - Valeur par défaut : `Europe/Paris` (gère automatiquement le passage heure d'hiver/heure d'été).
+
+- **Page d'enrôlement WebAuthn stylisée** (`GET /webauthn/register`) : la page de gestion des clés d'accès (Passkeys) est désormais rendue via un template Thymeleaf intégré dans le design de l'application (navbar, cartes, tableaux, couleurs CSS) au lieu de la page par défaut générée par Spring Security.
+  - Affichage de la liste des clés existantes (nom, date de création, dernière utilisation) avec bouton de suppression.
+  - Formulaire d'enregistrement d'une nouvelle clé avec champ de libellé.
+  - Messages de succès / erreur gérés par `spring-security-webauthn.js` (compatibilité totale avec les endpoints Spring Security existants).
+  - Bloc informatif sur les avantages des Passkeys.
+  - Nouveaux fichiers : `PasskeyPageFilter.java`, `PasskeyDto.java`, `templates/webauthn/register.html`.
+
 ## [0.3.5]
 
 ### Corrigé
