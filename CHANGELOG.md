@@ -5,6 +5,15 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.3.7]
+
+### Ajouté
+
+- **Alerte épargne non mise à jour** : un bandeau d'avertissement s'affiche en haut de l'onglet Épargne lorsqu'un ou plusieurs comptes n'ont pas reçu de nouvelle saisie depuis plus de 30 jours.
+  - La liste des comptes concernés est affichée avec la date de la dernière saisie (ou « aucune saisie » si aucune entrée n'existe).
+  - Calcul réalisé côté serveur dans `SavingsController` via un attribut `staleAccounts` passé au modèle Thymeleaf.
+  - Affichage conditionnel dans `savings.html` uniquement lorsque la liste est non vide.
+
 ## [0.3.6]
 
 ### Ajouté
