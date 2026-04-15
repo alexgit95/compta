@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
     <title>Connexion – Budget App</title>
     <link rel="stylesheet" th:href="@{/css/app.css}"/>
 </head>
@@ -39,8 +41,50 @@
             </button>
         </form>
 
+        <div style="display:flex; align-items:center; gap:.75rem; margin:1rem 0;">
+            <hr style="flex:1; border:none; border-top:1px solid var(--muted)"/>
+            <span style="color:var(--muted); font-size:.85rem;">ou</span>
+            <hr style="flex:1; border:none; border-top:1px solid var(--muted)"/>
+        </div>
+
+        <button id="signin-passkey" type="button" class="btn btn-secondary"
+                style="width:100%; justify-content:center; gap:.5rem;"
+                onclick="this.disabled=true; this.textContent='⏳ En cours…'">
+            🔑 Se connecter avec une clé d'accès (Passkey)
+        </button>
+        <div id="passkey-error" class="alert alert-error" style="display:none; margin-top:.75rem;">
+            Échec de l'authentification par clé d'accès.
+        </div>
+
         <div class="login-footer">Budget App v0.1.0</div>
     </div>
 </div>
+<script th:src="@{/js/spring-security-webauthn.js}"></script>
+<script th:inline="javascript">
+    (function () {
+        const csrf = document.querySelector('meta[name="_csrf"]').content;
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+        const headers = {};
+        headers[csrfHeader] = csrf;
+        const contextPath = /*[[${contextPath}]]*/ '';
+        const btn = document.getElementById('signin-passkey');
+
+        if (!window.setupLogin) {
+            btn.disabled = true;
+            btn.title = 'WebAuthn non supporté dans ce navigateur';
+            return;
+        }
+        window.setupLogin(headers, contextPath, btn);
+        // Restore button text on any click failure
+        btn.addEventListener('click', function () {
+            setTimeout(function () {
+                if (btn.disabled) {
+                    btn.disabled = false;
+                    btn.textContent = '🔑 Se connecter avec une clé d\'accès (Passkey)';
+                }
+            }, 8000);
+        });
+    })();
+</script>
 </body>
 </html>

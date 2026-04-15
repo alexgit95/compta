@@ -15,6 +15,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Controller
@@ -45,7 +46,11 @@ public class BudgetController {
         // Total expenses = difference between end and start
         BigDecimal totalMonthExpenses = balance.subtract(endOfMonthBalance).abs();
 
-        model.addAttribute("projection", projection);
+        // Convert LocalDate keys to ISO strings for safe JS inline serialization
+        Map<String, BigDecimal> projectionStr = new LinkedHashMap<>();
+        projection.forEach((k, v) -> projectionStr.put(k.toString(), v));
+
+        model.addAttribute("projection", projectionStr);
         model.addAttribute("currentBalance", balance);
         model.addAttribute("endOfMonthBalance", endOfMonthBalance);
         model.addAttribute("totalMonthExpenses", totalMonthExpenses);

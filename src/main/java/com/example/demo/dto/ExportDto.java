@@ -11,5 +11,6 @@ public class ExportDto {
     private List<RecurringExpense> recurringExpenses;
     private List<SavingsAccount> savingsAccounts;
     private List<SavingsEntry> savingsEntries;
+    private List<Goal> goals;
     private List<User> users;
 }

@@ -5,6 +5,114 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.3.5]
+
+### Corrigé
+
+- **WebAuthn / Passkeys PostgreSQL** : correction du type de colonne pour les données binaires dans la table `user_credentials`. Les colonnes `public_key`, `attestation_object` et `attestation_client_data_json` sont maintenant explicitement définies comme `bytea` au lieu de `oid`.
+
+## [0.3.4] - 2026-04-13
+
+### Ajouté
+
+- **Plein écran sur les graphiques** : tous les graphiques de l’application (Épargne, Budget, Objectifs) sont désormais cliquables. Un clic sur le graphique l'affiche en plein écran sur fond sombre, idéal pour une consultation mobile.
+  - Icône d’agrandissement (↗↙) affichée en incrustation en haut à droite de chaque graphique pour indiquer l’interaction possible.
+  - Bouton **×** (coin haut-droit) et touche **Échap** pour quitter le plein écran.
+- **Zoom / défilement en plein écran** : en mode plein écran, il est possible de zoomer sur l’axe horizontal (temps) et de naviguer dans la période :
+  - **Molette de souris** : zoom avant / arrière.
+  - **Pincer (touch)** : zoom à deux doigts sur mobile / tablette.
+  - **Glisser** : déplacer la vue après zoom.
+  - Bouton **🔍 Reset** pour revenir à la vue complète.
+- **Infrastructure partagée** : l’overlay plein écran, les scripts `hammerjs` et `chartjs-plugin-zoom` sont désormais chargés une seule fois dans `layout.html`. Chaque page enregistre son ou ses graphiques via `fsChartBuilders`.
+
+## [0.3.3] - 2026-04-13
+
+### Amélioré
+
+- **Épargne – modes d'affichage du graphique « Évolution globale »** : ajout de trois boutons de sélection du mode de visualisation directement dans l'entête du graphique :
+  - **Réelles** (mode par défaut) : affiche uniquement la courbe reliant les valeurs réelles saisies.
+  - **+ Projection** : affiche les valeurs réelles et la courbe de projection mensuelle (versements automatiques, tirets).
+  - **+ Tendance** : affiche les valeurs réelles et la droite de tendance linéaire calculée sur les 2 dernières années (pointillés).
+  Le bouton actif est mis en évidence (`btn-primary`), les autres restent en style secondaire (`btn-outline`).
+
+## [0.3.2] - 2026-04-13
+
+### Amélioré
+
+- **PWA / Mobile – barre de navigation responsive** : ajout d'un bouton hamburger (☰) dans la barre de navigation. Sur les écrans ≤ 768 px, les liens sont masqués par défaut et s'affichent en colonne plein-largeur au clic, supprimant le défilement horizontal.
+- **Graphiques objectifs – hauteur augmentée** : les graphiques de tendance par objectif (courbes Valeurs réelles, Projection, Tendance) passent de `260 px` à `380 px` de hauteur (`420 px` sur mobile) pour améliorer la lisibilité des courbes.
+- **Graphiques objectifs – axe Y normalisé** : l'axe Y de chaque graphique de tendance (section « Objectifs de solde ») démarre maintenant à `0` et se termine à la valeur maximale présente dans le graphique (soldes réels, projection, tendance et ligne d'objectif) multipliée par `1,15`, garantissant une vue lisible et cohérente quelle que soit l'amplitude des données.
+
+## [0.3.1] - 2026-04-13
+
+### Corrigé
+
+- **Bouton déconnexion** : le bouton de la barre de navigation affichait le nom de l'utilisateur connecté ; il affiche désormais « Déconnexion » pour une meilleure lisibilité.
+- **Graphique budget** : correction d'une erreur JavaScript `Uncaught SyntaxError: Unexpected token '{'` due à la sérialisation Thymeleaf des clés `LocalDate` (sérialisées en objet Java au lieu d'une chaîne ISO). Les clés de la map sont désormais converties en `String` (`LocalDate.toString()`) dans le contrôleur avant passage au modèle.
+- **Passkey / WebAuthn – domaine configurable via Portainer** : la variable d'environnement `WEBAUTHN_RP_ID` (déjà supportée) est désormais documentée explicitement comme paramètre obligatoire à configurer dans Portainer pour corriger l'erreur `'rp.id' cannot be used with the current origin`. Voir le README pour les détails de configuration.
+
+
+
+### Ajouté
+
+#### Authentification par clé d'accès (Passkeys / WebAuthn)
+
+- **Dépendance `spring-security-webauthn`** : ajout du module officiel Spring Security 7.0.4 WebAuthn (géré par le BOM Spring Boot 4.0.5, aucune version à épingler).
+- **Schéma de base de données** : deux nouvelles tables (`user_entities`, `user_credentials`) créées automatiquement par Hibernate via les entités JPA `UserEntityRecord` et `UserCredentialRecord`. Le schéma est compatible SQLite (local) et PostgreSQL (production).
+- **`WebAuthnConfig`** : bean de configuration déclarant les repositories JDBC officiels de Spring Security :
+  - `JdbcPublicKeyCredentialUserEntityRepository` (table `user_entities`)
+  - `JdbcUserCredentialRepository` (table `user_credentials`)
+- **`SecurityConfig`** : activation du configurer `.webAuthn()` avec les paramètres `rpName`, `rpId` et `allowedOrigins` injectés depuis les variables d'environnement. Spring Security génère automatiquement les endpoints :
+  - `POST /webauthn/authenticate/options` — challenge d'authentification
+  - `POST /login/webauthn` — vérification de l'assertion
+  - `POST /webauthn/register/options` — challenge d'enrôlement
+  - `POST /webauthn/register` — enregistrement de la clé
+  - `GET /webauthn/register` — page de gestion des clés (générée par Spring Security)
+  - `DELETE /webauthn/register/{credentialId}` — suppression d'une clé
+- **Script client `spring-security-webauthn.js`** : copie du script officiel fourni dans le jar Spring Security, exposé sous `/js/spring-security-webauthn.js`.
+- **Page de connexion** (`login.html`) : ajout du bouton *"🔑 Se connecter avec une clé d'accès (Passkey)"* avec gestion du token CSRF, désactivation gracieuse si le navigateur ne supporte pas WebAuthn.
+- **Navigation** (`layout.html`) : ajout du lien *"🔑 Mes clés"* → `/webauthn/register` pour gérer les clés d'accès enregistrées.
+- **Variables d'environnement WebAuthn** dans `application.properties` et `application-prod.properties` :
+
+  | Variable | Description | Défaut |
+  |---|---|---|
+  | `WEBAUTHN_RP_NAME` | Nom affiché dans le prompt du navigateur | `Budget App` |
+  | `WEBAUTHN_RP_ID` | Domaine de confiance (sans port) | `localhost` |
+  | `WEBAUTHN_ALLOWED_ORIGINS` | Origines autorisées (virgule-séparées) | `http://localhost:8080` |
+
+### Notes de déploiement
+
+> **WebAuthn requiert HTTPS en production** (sauf `localhost`). Sur le Raspberry Pi, configurer un reverse proxy TLS (Traefik ou Nginx + Let's Encrypt) avant d'activer les passkeys.
+> Variables à ajouter dans Portainer : `WEBAUTHN_RP_ID=votre-domaine.com` et `WEBAUTHN_ALLOWED_ORIGINS=https://votre-domaine.com`.
+
+## [0.2.0] - 2026-04-09
+
+### Ajouté
+
+#### Module Objectifs (nouveau)
+
+- **Nouveau modèle `Goal`** (`goal` en base) : objectif lié à un compte épargne, de type `TARGET_BALANCE` (solde cible) ou `MONTHLY_CONTRIBUTION` (versement mensuel cible), avec un montant objectif.
+- **`GoalRepository`**, **`GoalService`**, **`GoalController`** : stack complète CRUD pour les objectifs.
+- **Page `/goals`** (onglet *Objectifs* dans la navigation) :
+  - **Sélecteur de tendance** : champ numérique pour choisir sur combien d'années analyser la tendance (1–20, défaut 3).
+  - **Histogramme "Versements mensuels"** : barre *versement actuel* vs *objectif* par compte (visible si au moins un objectif de type `MONTHLY_CONTRIBUTION`).
+  - **Histogramme "Solde cible"** : barre *solde actuel* vs *objectif* par compte (visible si au moins un objectif `TARGET_BALANCE`), avec infobulle indiquant la date d'atteinte estimée.
+  - **Courbe de tendance par objectif de solde** : graphique ligne couvrant `trendYears` années passées jusqu'à la date d'atteinte estimée (ou +5 ans), avec régression linéaire, projection mensuelle (tirets), ligne horizontale de l'objectif (annotation rouge pointillée) et marqueur *Aujourd'hui*.
+  - **Date d'atteinte estimée** : calculée à partir du taux moyen de croissance mensuelle sur la période de tendance ; affichée au format `MM/yyyy` dans l'en-tête de chaque courbe de tendance.
+  - **Bandeau d'alerte** (⚠️) : affiché en haut de la page pour chaque compte dont le solde a atteint l'objectif mais dont le versement mensuel est encore actif.
+  - **Tableau récapitulatif** : liste de tous les objectifs avec progression en % (colorée en vert à 100 %).
+  - **Modal de création d'objectif** (EDITOR/ADMIN uniquement) : sélection du compte, du type et du montant.
+  - **Suppression d'objectif** (EDITOR/ADMIN uniquement) avec confirmation.
+- **Import/Export** : les objectifs sont inclus dans le JSON exporté (`goals`) et restaurés lors de l'import (re-liaison par libellé de compte). L'ordre de suppression est respecté (goals supprimés avant les comptes épargne).
+- **Sécurité** : `/goals/**` accessible en lecture à tous les rôles (`ADMIN`, `EDITOR`, `VIEWER`) ; création et suppression restreintes à `EDITOR` et `ADMIN` via `@PreAuthorize`.
+
+## [0.1.3] - 2026-04-09
+
+### Modifié
+
+#### Module Épargne
+- **Ajustement de l'échelle Y du graphique** : l'axe Y du graphique d'épargne suggère désormais un maximum supérieur à la valeur maximale des séries (marge de ~10%) pour améliorer la lisibilité. Fichier modifié : `src/main/resources/templates/savings.html`.
+
 ## [0.1.2] - 2026-04-08
 
 ### Ajouté
@@ -41,6 +149,9 @@ et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/)
 
 ### Corrigé
 
+###  Ajouté (2026-04-09)
+
+- **PWA** : ajout d'un `manifest.webmanifest`, icônes et `sw.js` pour permettre l'installation sur Android et le mode hors-ligne. Les ressources publiques sont exposées via `/manifest.webmanifest`, `/icons/**` et `/sw.js`.
 #### Sécurité / Spring Boot
 - **Dépendance circulaire** entre `SecurityConfig`, `ApiKeyAuthFilter` et `ApiKeyService` : déplacement du bean `PasswordEncoder` dans une classe dédiée `PasswordEncoderConfig`
 - **Import de données** (`ImportExportService`) : remplacement de `deleteAll()` par `deleteAllInBatch()` suivi de `entityManager.flush()` + `entityManager.clear()` pour éviter la violation de contrainte UNIQUE lors de la réimportation

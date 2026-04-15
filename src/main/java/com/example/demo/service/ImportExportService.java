@@ -18,6 +18,7 @@ public class ImportExportService {
     private final RecurringExpenseRepository expenseRepository;
     private final SavingsAccountRepository savingsAccountRepository;
     private final SavingsEntryRepository savingsEntryRepository;
+    private final GoalRepository goalRepository;
     private final UserRepository userRepository;
     private final EntityManager entityManager;
 
@@ -27,6 +28,7 @@ public class ImportExportService {
         dto.setRecurringExpenses(expenseRepository.findAll());
         dto.setSavingsAccounts(savingsAccountRepository.findAll());
         dto.setSavingsEntries(savingsEntryRepository.findAll());
+        dto.setGoals(goalRepository.findAll());
         dto.setUsers(userRepository.findAll());
         return dto;
     }
@@ -34,6 +36,8 @@ public class ImportExportService {
     @Transactional
     public void importData(ExportDto dto) {
         // Clear all data first (order matters for FK constraints)
+        // Goals reference SavingsAccount, so delete goals before savings entries/accounts
+        goalRepository.deleteAllInBatch();
         savingsEntryRepository.deleteAllInBatch();
         expenseRepository.deleteAllInBatch();
         savingsAccountRepository.deleteAllInBatch();
@@ -82,6 +86,19 @@ public class ImportExportService {
                     }
                 }
                 savingsEntryRepository.saveAll(dto.getSavingsEntries());
+            }
+
+            if (dto.getGoals() != null) {
+                for (Goal g : dto.getGoals()) {
+                    g.setId(null);
+                    if (g.getSavingsAccount() != null) {
+                        savedAccounts.stream()
+                                .filter(a -> a.getLabel().equals(g.getSavingsAccount().getLabel()))
+                                .findFirst()
+                                .ifPresent(g::setSavingsAccount);
+                    }
+                }
+                goalRepository.saveAll(dto.getGoals());
             }
         }
 
