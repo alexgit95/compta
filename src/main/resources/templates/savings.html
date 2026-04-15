@@ -23,6 +23,11 @@
         <div class="flex flex-wrap" style="justify-content:space-between; align-items:center; margin-bottom:1rem;">
             <div class="card-title" style="margin:0;">Évolution globale de l'épargne</div>
             <div class="flex" style="gap:1rem; align-items:center; flex-wrap:wrap;">
+                <div class="flex" style="gap:.5rem; align-items:center;">
+                    <button id="btn-mode-real" class="btn btn-primary btn-sm" onclick="setChartMode('real')">Réelles</button>
+                    <button id="btn-mode-realproj" class="btn btn-outline btn-sm" onclick="setChartMode('realproj')">+ Projection</button>
+                    <button id="btn-mode-realtrend" class="btn btn-outline btn-sm" onclick="setChartMode('realtrend')">+ Tendance</button>
+                </div>
                 <div class="form-group" style="margin:0;">
                     <label style="font-size:.82rem; color:var(--text-muted);">Du</label>
                     <input type="month" id="rangeFrom" class="form-control" style="padding:.25rem .5rem;"
@@ -39,7 +44,10 @@
                 </div>
             </div>
         </div>
-        <div class="chart-container" style="height:320px;">
+        <div class="chart-container" style="height:320px; cursor:pointer; position:relative;" onclick="openChartFullscreen('savingsChart')" title="Cliquez pour agrandir en plein écran">
+            <span style="position:absolute;top:.4rem;right:.5rem;opacity:.45;pointer-events:none;line-height:1;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            </span>
             <canvas id="savingsChart"></canvas>
         </div>
     </div>
@@ -186,7 +194,16 @@ const palettes = [
 ];
 
 let savingsChart = null;
+let chartMode = 'real';
 const todayYM = new Date().toISOString().substring(0, 7);
+
+function setChartMode(mode) {
+    chartMode = mode;
+    document.getElementById('btn-mode-real').className      = mode === 'real'      ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+    document.getElementById('btn-mode-realproj').className  = mode === 'realproj'  ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+    document.getElementById('btn-mode-realtrend').className = mode === 'realtrend' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+    renderChart();
+}
 
 function monthDiff(fromYM, toYM) {
     const [fy, fm] = fromYM.split('-').map(Number);
@@ -235,8 +252,7 @@ function buildDatasets(fromYM, toYM, labels) {
 
         const filtered = labels.map(ym => byYM[ym]).filter(Boolean);
 
-        // ── 1. Valeurs réelles + droite les reliant ──────────────────────
-        const realInRange = filtered.filter(p => p.real);
+        // ── 1. Valeurs réelles ─ toujours affichées ──────────────────────
         datasets.push({
             label: account.label + ' (valeurs réelles)',
             data: labels.map(ym => {
@@ -252,51 +268,112 @@ function buildDatasets(fromYM, toYM, labels) {
             pointBackgroundColor: palette.real,
             pointBorderColor: '#fff',
             pointBorderWidth: 2,
-            spanGaps: false,
+            spanGaps: true,
             order: 1,
         });
 
         // ── 2. Projection mensuelle (versements automatiques) ─── tirets ─
-        datasets.push({
-            label: account.label + ' (projection)',
-            data: labels.map(ym => byYM[ym] ? byYM[ym].balance : null),
-            borderColor: palette.proj,
-            backgroundColor: 'transparent',
-            fill: false,
-            tension: 0.3,
-            borderWidth: 1.5,
-            borderDash: [6, 4],
-            pointRadius: 0,
-            spanGaps: true,
-            order: 2,
-        });
-
-        // ── 3. Tendance linéaire sur 2 ans de données réelles ─── pointillé
-        const now = new Date();
-        const twoYearsAgoYM = `${now.getFullYear() - 2}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        const trendSource = allPoints.filter(p => p.real && p.date.substring(0, 7) >= twoYearsAgoYM);
-
-        if (trendSource.length >= 2) {
-            const origin = trendSource[0].date.substring(0, 7);
-            const xArr = trendSource.map(p => monthDiff(origin, p.date.substring(0, 7)));
-            const yArr = trendSource.map(p => p.balance);
-            const reg  = linearRegression(xArr, yArr);
-
+        if (chartMode === 'realproj') {
             datasets.push({
-                label: account.label + ' (tendance 2 ans)',
-                data: labels.map(ym => Math.max(0, reg.intercept + reg.slope * monthDiff(origin, ym))),
-                borderColor: palette.trend,
+                label: account.label + ' (projection)',
+                data: labels.map(ym => byYM[ym] ? byYM[ym].balance : null),
+                borderColor: palette.proj,
                 backgroundColor: 'transparent',
                 fill: false,
-                tension: 0,
-                borderWidth: 2,
-                borderDash: [3, 3],
+                tension: 0.3,
+                borderWidth: 1.5,
+                borderDash: [6, 4],
                 pointRadius: 0,
-                order: 3,
+                spanGaps: true,
+                order: 2,
             });
+        }
+
+        // ── 3. Tendance linéaire sur 2 ans de données réelles ─── pointillé
+        if (chartMode === 'realtrend') {
+            const now = new Date();
+            const twoYearsAgoYM = `${now.getFullYear() - 2}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const trendSource = allPoints.filter(p => p.real && p.date.substring(0, 7) >= twoYearsAgoYM);
+
+            if (trendSource.length >= 2) {
+                const origin = trendSource[0].date.substring(0, 7);
+                const xArr = trendSource.map(p => monthDiff(origin, p.date.substring(0, 7)));
+                const yArr = trendSource.map(p => p.balance);
+                const reg  = linearRegression(xArr, yArr);
+
+                datasets.push({
+                    label: account.label + ' (tendance 2 ans)',
+                    data: labels.map(ym => Math.max(0, reg.intercept + reg.slope * monthDiff(origin, ym))),
+                    borderColor: palette.trend,
+                    backgroundColor: 'transparent',
+                    fill: false,
+                    tension: 0,
+                    borderWidth: 2,
+                    borderDash: [3, 3],
+                    pointRadius: 0,
+                    order: 3,
+                });
+            }
         }
     }
     return datasets;
+}
+
+function buildChartOptions(labels, suggestedMax, enableZoom) {
+    const opts = {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: ctx => ctx.dataset.label + ' : ' + ctx.parsed.y.toFixed(2) + ' €'
+                }
+            },
+            legend: { labels: { boxWidth: 20, padding: 15, color: enableZoom ? '#eee' : undefined } },
+            annotation: {
+                annotations: {
+                    todayLine: {
+                        type: 'line',
+                        scaleID: 'x',
+                        value: labels.includes(todayYM) ? todayYM : null,
+                        borderColor: '#e74c3c',
+                        borderWidth: 2,
+                        borderDash: [6, 3],
+                        label: {
+                            display: labels.includes(todayYM),
+                            content: "Aujourd'hui",
+                            position: 'start',
+                            backgroundColor: '#e74c3c',
+                            color: '#fff',
+                            font: { size: 11 },
+                            padding: { x: 6, y: 3 },
+                            yAdjust: -10
+                        }
+                    }
+                }
+            }
+        },
+        scales: {
+            x: { type: 'category', grid: { display: false }, ticks: { color: enableZoom ? '#ccc' : undefined } },
+            y: { ticks: { callback: v => v.toFixed(0) + ' €', color: enableZoom ? '#ccc' : undefined }, grid: { color: enableZoom ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.05)' }, suggestedMax }
+        }
+    };
+    if (enableZoom) {
+        opts.plugins.zoom = {
+            zoom: {
+                wheel: { enabled: true, speed: 0.1 },
+                pinch: { enabled: true },
+                mode: 'x'
+            },
+            pan: {
+                enabled: true,
+                mode: 'x'
+            },
+            limits: { x: { minRange: 2 } }
+        };
+    }
+    return opts;
 }
 
 function renderChart() {
@@ -306,53 +383,31 @@ function renderChart() {
 
     const { labels, datasets } = buildChart(fromYM, toYM);
 
+    // Calculer la valeur maximale visible pour ajouter une marge sur l'axe Y
+    let maxVal = 0;
+    datasets.forEach(ds => {
+        ds.data.forEach(v => {
+            if (v !== null && typeof v === 'number' && !isNaN(v)) {
+                maxVal = Math.max(maxVal, v);
+            }
+        });
+    });
+    const suggestedMax = maxVal > 0 ? Math.ceil(maxVal * 1.1) : undefined;
+
     if (savingsChart) {
-        savingsChart.data.labels   = labels;
+        savingsChart.data.labels = labels;
         savingsChart.data.datasets = datasets;
+        // Mettre à jour la suggestion de maximum pour l'axe Y
+        if (!savingsChart.options) savingsChart.options = {};
+        if (!savingsChart.options.scales) savingsChart.options.scales = {};
+        if (!savingsChart.options.scales.y) savingsChart.options.scales.y = {};
+        savingsChart.options.scales.y.suggestedMax = suggestedMax;
         savingsChart.update();
     } else {
         savingsChart = new Chart(document.getElementById('savingsChart'), {
             type: 'line',
             data: { labels, datasets },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: ctx => ctx.dataset.label + ' : ' + ctx.parsed.y.toFixed(2) + ' €'
-                        }
-                    },
-                    legend: { labels: { boxWidth: 20, padding: 15 } },
-                    annotation: {
-                        annotations: {
-                            todayLine: {
-                                type: 'line',
-                                scaleID: 'x',
-                                value: labels.includes(todayYM) ? todayYM : null,
-                                borderColor: '#e74c3c',
-                                borderWidth: 2,
-                                borderDash: [6, 3],
-                                label: {
-                                    display: labels.includes(todayYM),
-                                    content: "Aujourd'hui",
-                                    position: 'start',
-                                    backgroundColor: '#e74c3c',
-                                    color: '#fff',
-                                    font: { size: 11 },
-                                    padding: { x: 6, y: 3 },
-                                    yAdjust: -10
-                                }
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: { type: 'category', grid: { display: false } },
-                    y: { ticks: { callback: v => v.toFixed(0) + ' €' }, grid: { color: 'rgba(0,0,0,.05)' } }
-                }
-            }
+            options: buildChartOptions(labels, suggestedMax, false)
         });
     }
 }
@@ -424,6 +479,24 @@ if (accounts.length > 0) {
     document.getElementById('varFrom').addEventListener('change', renderVariation);
     document.getElementById('varTo').addEventListener('change', renderVariation);
 }
+
+// ── Enregistrement du constructeur plein écran ──────────────────────────────────
+fsChartBuilders['savingsChart'] = function(canvas) {
+    const fromYM = document.getElementById('rangeFrom').value;
+    const toYM   = document.getElementById('rangeTo').value;
+    if (!fromYM || !toYM || fromYM > toYM) return null;
+    const { labels, datasets } = buildChart(fromYM, toYM);
+    let maxVal = 0;
+    datasets.forEach(ds => ds.data.forEach(v => {
+        if (v !== null && typeof v === 'number' && !isNaN(v)) maxVal = Math.max(maxVal, v);
+    }));
+    const suggestedMax = maxVal > 0 ? Math.ceil(maxVal * 1.1) : undefined;
+    return new Chart(canvas, {
+        type: 'line',
+        data: { labels, datasets },
+        options: buildChartOptions(labels, suggestedMax, true)
+    });
+};
 /*]]>*/
 </script>
 </th:block>

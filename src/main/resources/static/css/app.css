@@ -48,6 +48,44 @@ body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color
 }
 .btn-link:hover { background: var(--bg); }
 
+/* ===== Hamburger toggle (mobile only) ===== */
+.navbar-toggle {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text);
+  padding: .2rem .4rem;
+  line-height: 1;
+}
+@media (max-width: 768px) {
+  .navbar { flex-wrap: wrap; height: auto; padding: .5rem 1rem; row-gap: 0; }
+  .navbar-toggle { display: block; }
+  .navbar-links {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    gap: .2rem;
+    padding: .5rem 0 .75rem;
+    align-items: stretch;
+  }
+  .navbar-links.open { display: flex; }
+  .navbar-links a {
+    width: 100%;
+    justify-content: flex-start;
+    border-radius: var(--radius);
+    padding: .6rem .9rem;
+  }
+  .btn-link {
+    width: 100%;
+    text-align: left;
+    border-radius: var(--radius);
+    padding: .6rem .9rem;
+    border: none;
+  }
+}
+
 /* ===== Container ===== */
 .container { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
 
@@ -120,6 +158,10 @@ tbody tr:hover { background: #f9fbff; }
 
 /* ===== Chart ===== */
 .chart-container { position: relative; height: 280px; width: 100%; }
+@media (max-width: 768px) {
+  .chart-container { height: 320px; }
+  .chart-container.chart-tall { height: 420px; }
+}
 
 /* ===== Page tabs (admin sub-nav) ===== */
 .sub-nav { display: flex; gap: .35rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
