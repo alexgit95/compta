@@ -43,7 +43,10 @@ COPY --from=extractor /app/extracted/application/           ./
 
 EXPOSE 8080
 
+ENV APP_TIMEZONE=Europe/Paris
+
 ENTRYPOINT ["java", \
     "-Djava.security.egd=file:/dev/./urandom", \
+    "-Duser.timezone=Europe/Paris", \
     "-Dspring.profiles.active=prod", \
     "org.springframework.boot.loader.launch.JarLauncher"]

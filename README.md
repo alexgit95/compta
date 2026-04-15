@@ -64,6 +64,7 @@ Un compte administrateur est créé automatiquement au premier démarrage avec l
 | `WEBAUTHN_RP_ID` | Domaine WebAuthn **sans port** (ex: `budget.mondomaine.com`) | `localhost` |
 | `WEBAUTHN_ALLOWED_ORIGINS` | Origines autorisées virgule-séparées (ex: `https://budget.mondomaine.com`) | `http://localhost:8080` |
 | `WEBAUTHN_RP_NAME` | Nom affiché dans le prompt passkey | `Budget App` |
+| `APP_TIMEZONE` | Fuseau horaire de l'application (format IANA, ex: `Europe/Paris`) | `Europe/Paris` |
 
 > ⚠️ **WebAuthn requiert HTTPS en production.** Sur le Raspberry Pi, placez un reverse proxy TLS devant l'application (Traefik ou Nginx + Let's Encrypt) et configurez `WEBAUTHN_RP_ID` avec votre domaine réel.
 >
@@ -89,6 +90,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/budget
       SPRING_DATASOURCE_USERNAME: budget
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      APP_TIMEZONE: Europe/Paris
     depends_on:
       - db
   db:
