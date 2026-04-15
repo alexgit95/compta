@@ -5,6 +5,17 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [Unreleased]
+
+### Ajouté
+
+- **Page d'enrôlement WebAuthn stylisée** (`GET /webauthn/register`) : la page de gestion des clés d'accès (Passkeys) est désormais rendue via un template Thymeleaf intégré dans le design de l'application (navbar, cartes, tableaux, couleurs CSS) au lieu de la page par défaut générée par Spring Security.
+  - Affichage de la liste des clés existantes (nom, date de création, dernière utilisation) avec bouton de suppression.
+  - Formulaire d'enregistrement d'une nouvelle clé avec champ de libellé.
+  - Messages de succès / erreur gérés par `spring-security-webauthn.js` (compatibilité totale avec les endpoints Spring Security existants).
+  - Bloc informatif sur les avantages des Passkeys.
+  - Nouveaux fichiers : `PasskeyPageFilter.java`, `PasskeyDto.java`, `templates/webauthn/register.html`.
+
 ## [0.3.5]
 
 ### Corrigé
