@@ -96,12 +96,27 @@
                             Objectif :
                             <strong th:text="${#numbers.formatDecimal(goal.targetAmount, 1, 'COMMA', 2, 'POINT') + ' €'}"></strong>
                         </div>
-                        <div th:if="${reachDates.containsKey(goal.id)}"
+                        <div th:if="${reachDates.containsKey(goal.id) and (reachDates.get(goal.id).get('trend') != null or reachDates.get(goal.id).get('projection') != null)}"
                              style="color:var(--primary); font-weight:600;">
                             🏁 Atteinte estimée :
-                            <strong th:text="${#temporals.format(reachDates.get(goal.id), 'MM/yyyy')}"></strong>
+                            <div style="display:flex; gap:1rem; margin-top:.25rem; font-weight:400; color:var(--text);">
+                                <span th:if="${reachDates.get(goal.id).get('trend') != null}"
+                                      th:data-date="${#temporals.format(reachDates.get(goal.id).get('trend'), 'yyyy-MM')}"
+                                      class="estimate-date-display">
+                                    Tendance :
+                                    <strong th:text="${#temporals.format(reachDates.get(goal.id).get('trend'), 'MM/yyyy')}"></strong>
+                                </span>
+                                <span th:unless="${reachDates.get(goal.id).get('trend') != null}"
+                                      style="opacity:.5;">Tendance : n/a</span>
+                                <span th:if="${reachDates.get(goal.id).get('projection') != null}"
+                                      th:data-date="${#temporals.format(reachDates.get(goal.id).get('projection'), 'yyyy-MM')}"
+                                      class="estimate-date-display">
+                                    Projection :
+                                    <strong th:text="${#temporals.format(reachDates.get(goal.id).get('projection'), 'MM/yyyy')}"></strong>
+                                </span>
+                            </div>
                         </div>
-                        <div th:unless="${reachDates.containsKey(goal.id)}">
+                        <div th:unless="${reachDates.containsKey(goal.id) and (reachDates.get(goal.id).get('trend') != null or reachDates.get(goal.id).get('projection') != null)}">
                             <span th:if="${currentValues.get(goal.savingsAccount.id) != null
                                           and currentValues.get(goal.savingsAccount.id).compareTo(goal.targetAmount) >= 0}"
                                   style="color:#27ae60; font-weight:600;">

@@ -2,6 +2,7 @@ package com.example.demo.service;
 
 import com.example.demo.model.Goal;
 import com.example.demo.model.GoalType;
+import com.example.demo.model.SavingsEntry;
 import com.example.demo.repository.GoalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -66,6 +67,89 @@ public class GoalService {
         if (monthsToReach < 0) return Optional.empty();
 
         return Optional.of(now.plusMonths(monthsToReach));
+    }
+
+    /**
+     * Estimates the date using linear regression on real SavingsEntry records
+     * (matches the graphical trend line shown in the chart).
+     */
+    public Optional<LocalDate> estimatedReachDateByTrend(Goal goal, int trendMonths) {
+        if (goal.getType() != GoalType.TARGET_BALANCE) return Optional.empty();
+
+        LocalDate now = LocalDate.now();
+        BigDecimal currentBalance = savingsService.projectBalance(goal.getSavingsAccount(), now);
+        BigDecimal target = goal.getTargetAmount();
+
+        if (currentBalance.compareTo(target) >= 0) return Optional.empty();
+
+        List<SavingsEntry> entries = savingsService.findEntriesForAccount(goal.getSavingsAccount());
+        if (entries.size() < 2) return Optional.empty();
+
+        LocalDate trendStart = now.minusMonths(trendMonths);
+        List<SavingsEntry> trendEntries = entries.stream()
+                .filter(e -> !e.getEntryDate().withDayOfMonth(1).isBefore(trendStart.withDayOfMonth(1)))
+                .toList();
+
+        if (trendEntries.size() < 2) return Optional.empty();
+
+        LocalDate origin = trendEntries.get(0).getEntryDate().withDayOfMonth(1);
+        double[] x = new double[trendEntries.size()];
+        double[] y = new double[trendEntries.size()];
+        for (int i = 0; i < trendEntries.size(); i++) {
+            x[i] = java.time.temporal.ChronoUnit.MONTHS.between(origin, trendEntries.get(i).getEntryDate().withDayOfMonth(1));
+            y[i] = trendEntries.get(i).getBalance().doubleValue();
+        }
+
+        int n = x.length;
+        double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+        for (int i = 0; i < n; i++) {
+            sumX += x[i]; sumY += y[i];
+            sumXY += x[i] * y[i]; sumX2 += x[i] * x[i];
+        }
+        double denom = n * sumX2 - sumX * sumX;
+        if (Math.abs(denom) < 1e-10) return Optional.empty();
+        double slope = (n * sumXY - sumX * sumY) / denom;
+        double intercept = (sumY - slope * sumX) / n;
+
+        if (slope <= 0) return Optional.empty();
+
+        double monthsFromOrigin = (target.doubleValue() - intercept) / slope;
+        if (monthsFromOrigin < 0) return Optional.empty();
+
+        LocalDate estimated = origin.plusMonths((long) Math.ceil(monthsFromOrigin));
+        if (estimated.isBefore(now)) return Optional.of(now.plusMonths(1));
+        return Optional.of(estimated);
+    }
+
+    /**
+     * Estimates the date using the configured monthly deposit (matches the projection
+     * curve shown in the chart: linear extrapolation from current balance at monthlyDeposit/month).
+     */
+    public Optional<LocalDate> estimatedReachDateByProjection(Goal goal) {
+        if (goal.getType() != GoalType.TARGET_BALANCE) return Optional.empty();
+
+        LocalDate now = LocalDate.now();
+        BigDecimal currentBalance = savingsService.projectBalance(goal.getSavingsAccount(), now);
+        BigDecimal target = goal.getTargetAmount();
+
+        if (currentBalance.compareTo(target) >= 0) return Optional.empty();
+
+        BigDecimal monthlyDeposit = goal.getSavingsAccount().getMonthlyDeposit();
+        if (monthlyDeposit == null || monthlyDeposit.compareTo(BigDecimal.ZERO) <= 0) return Optional.empty();
+
+        BigDecimal remaining = target.subtract(currentBalance);
+        long months = remaining.divide(monthlyDeposit, 0, RoundingMode.CEILING).longValue();
+        return Optional.of(now.plusMonths(months));
+    }
+
+    /**
+     * Returns both trend (regression) and projection (monthly deposit) reach dates.
+     */
+    public Map<String, LocalDate> estimatedReachDates(Goal goal, int trendMonths) {
+        Map<String, LocalDate> map = new LinkedHashMap<>();
+        map.put("trend", estimatedReachDateByTrend(goal, trendMonths).orElse(null));
+        map.put("projection", estimatedReachDateByProjection(goal).orElse(null));
+        return map;
     }
 
     /**
