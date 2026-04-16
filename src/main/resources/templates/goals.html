@@ -96,12 +96,35 @@
                             Objectif :
                             <strong th:text="${#numbers.formatDecimal(goal.targetAmount, 1, 'COMMA', 2, 'POINT') + ' €'}"></strong>
                         </div>
-                        <div th:if="${reachDates.containsKey(goal.id)}"
+                        <div th:if="${reachDates.containsKey(goal.id) and (reachDates.get(goal.id).get('trend') != null or reachDates.get(goal.id).get('projection') != null)}"
                              style="color:var(--primary); font-weight:600;">
                             🏁 Atteinte estimée :
-                            <strong th:text="${#temporals.format(reachDates.get(goal.id), 'MM/yyyy')}"></strong>
+                            <div style="display:flex; gap:1rem; margin-top:.25rem;">
+                                <label style="display:flex; align-items:center; gap:.4rem; font-weight:400; color:var(--text); cursor:pointer;">
+                                    <input type="radio" name="estimateMethod-${goal.id}" value="trend" checked
+                                           class="estimate-method-radio" th:data-goal-id="${goal.id}"/>
+                                    <span th:if="${reachDates.get(goal.id).get('trend') != null}"
+                                          th:data-date="${#temporals.format(reachDates.get(goal.id).get('trend'), 'yyyy-MM')}"
+                                          class="estimate-display-trend estimate-date-display">
+                                        Tendance: 
+                                        <strong th:text="${#temporals.format(reachDates.get(goal.id).get('trend'), 'MM/yyyy')}"></strong>
+                                    </span>
+                                    <span th:unless="${reachDates.get(goal.id).get('trend') != null}" 
+                                          style="opacity:.5;">Tendance: n/a</span>
+                                </label>
+                                <label style="display:flex; align-items:center; gap:.4rem; font-weight:400; color:var(--text); cursor:pointer;"
+                                       th:if="${reachDates.get(goal.id).get('projection') != null}">
+                                    <input type="radio" name="estimateMethod-${goal.id}" value="projection"
+                                           class="estimate-method-radio" th:data-goal-id="${goal.id}"/>
+                                    <span th:data-date="${#temporals.format(reachDates.get(goal.id).get('projection'), 'yyyy-MM')}"
+                                          class="estimate-display-projection estimate-date-display">
+                                        Projection: 
+                                        <strong th:text="${#temporals.format(reachDates.get(goal.id).get('projection'), 'MM/yyyy')}"></strong>
+                                    </span>
+                                </label>
+                            </div>
                         </div>
-                        <div th:unless="${reachDates.containsKey(goal.id)}">
+                        <div th:unless="${reachDates.containsKey(goal.id) and (reachDates.get(goal.id).get('trend') != null or reachDates.get(goal.id).get('projection') != null)}">
                             <span th:if="${currentValues.get(goal.savingsAccount.id) != null
                                           and currentValues.get(goal.savingsAccount.id).compareTo(goal.targetAmount) >= 0}"
                                   style="color:#27ae60; font-weight:600;">
@@ -597,6 +620,47 @@ function openEditGoal(btn) {
     document.getElementById('edit-type-select').value = btn.dataset.type;
     document.getElementById('edit-amount-input').value = btn.dataset.amount;
     document.getElementById('modal-edit-goal').style.display = 'flex';
+}
+
+// ── Estimated reach date management ────────────────────────────────────────────
+// Helper: Check if date is more than 25 years in the future
+function isDateTooFar(dateStr) {
+    if (!dateStr) return false;
+    const [year, month] = dateStr.split('-');
+    const date = new Date(year, month - 1, 1);
+    const today = new Date();
+    const maxDate = new Date(today.getFullYear() + 25, today.getMonth(), today.getDate());
+    return date > maxDate;
+}
+
+// Helper: Format date or return infinity symbol if too far
+function formatEstimateDate(dateStr) {
+    if (!dateStr) return 'n/a';
+    if (isDateTooFar(dateStr)) return '∞';
+    return dateStr.replace('-', '/');
+}
+
+// Format all estimate date displays on page load
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.estimate-date-display').forEach(elem => {
+        const dateStr = elem.dataset.date;
+        const label = elem.textContent.split(':')[0] + ': ';
+        const formatted = formatEstimateDate(dateStr);
+        elem.innerHTML = label + '<strong>' + formatted + '</strong>';
+    });
+    
+    // Initialize estimate method radio buttons
+    document.querySelectorAll('.estimate-method-radio').forEach(radio => {
+        radio.addEventListener('change', function() {
+            updateEstimateDisplay(this.dataset.goalId, this.value);
+        });
+    });
+});
+
+// Update the estimate display when method is changed
+function updateEstimateDisplay(goalId, method) {
+    // This function can be expanded in future to update other UI elements
+    // based on the selected calculation method
 }
 /*]]>*/
 </script>

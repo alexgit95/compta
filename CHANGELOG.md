@@ -5,6 +5,33 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.3.9]
+
+### Ajouté
+
+- **Objectifs** : deux options pour le calcul de la date estimée d'atteinte d'un objectif de solde cible :
+  - **Tendance** : utilise une régression linéaire sur les derniers mois (par défaut, correspond à la courbe affichée).
+  - **Projection** : utilise une simple moyenne arithmétique de la croissance mensuelle (méthode héritée).
+  - Les deux dates sont affichées comme des boutons radio dans l'onglet Objectifs pour permettre à l'utilisateur de choisir sa méthode préférée.
+  
+- **Symbole infini** : lorsqu'une date estimée dépasse 25 ans dans le futur, elle est affichée sous la forme du symbole `∞` au lieu d'une date, pour indiquer une atteinte très lointaine ou improbable.
+  - Implémentation en JavaScript côté client pour le formatage dynamique des dates.
+  - Basé sur `estimatedReachDateByProjection()` dans `GoalService` et mise à jour du template `goals.html` avec les deux options.
+
+### Modifié
+
+- **`GoalService`** : 
+  - Nouvelle méthode `estimatedReachDateByProjection()` pour calculer la date estimée par projection (moyenne simple).
+  - Nouvelle classe interne `EstimatedReachDates` pour encapsuler les deux dates (tendance et projection).
+  - Nouvelle méthode `estimatedReachDates()` qui retourne les deux dates pour un objectif.
+
+- **`GoalController`** : ajustement du mapping pour passer les deux dates estimées (tendance et projection) au template via un `Map<String, LocalDate>` par objectif.
+
+- **`goals.html`** (template) :
+  - Affichage des deux options de date estimée avec des boutons radio.
+  - Ajout d'une classe CSS `estimate-date-display` et de data-attributes pour le formatage dynamique des dates.
+  - Ajout de code JavaScript (`isDateTooFar()`, `formatEstimateDate()`) pour afficher `∞` si la date dépasse 25 ans.
+
 ## [0.3.8]
 
 ### Corrigé

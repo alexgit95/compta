@@ -147,6 +147,84 @@ public class GoalService {
     }
 
     /**
+     * Estimates the date when a TARGET_BALANCE goal will be reached using simple
+     * projection (average monthly growth rate) over the last {@code trendMonths} months.
+     * This is the legacy calculation method.
+     * Returns empty if the goal is already reached or if the trend is not positive.
+     */
+    public Optional<LocalDate> estimatedReachDateByProjection(Goal goal, int trendMonths) {
+        if (goal.getType() != GoalType.TARGET_BALANCE) return Optional.empty();
+
+        LocalDate now = LocalDate.now();
+        BigDecimal currentBalance = savingsService.projectBalance(goal.getSavingsAccount(), now);
+        BigDecimal target = goal.getTargetAmount();
+
+        if (currentBalance.compareTo(target) >= 0) {
+            return Optional.empty(); // already reached
+        }
+
+        // Get all entries for this account
+        List<SavingsEntry> entries = savingsService.findEntriesForAccount(goal.getSavingsAccount());
+        if (entries.size() < 2) return Optional.empty();
+
+        // Get entries within the trend period
+        LocalDate trendStart = now.minusMonths(trendMonths);
+        List<SavingsEntry> trendEntries = entries.stream()
+                .filter(e -> !e.getEntryDate().withDayOfMonth(1).isBefore(trendStart.withDayOfMonth(1)))
+                .toList();
+
+        if (trendEntries.size() < 2) return Optional.empty();
+
+        // Simple average: (last - first) / number of months
+        BigDecimal firstBalance = trendEntries.get(0).getBalance();
+        BigDecimal lastBalance = trendEntries.get(trendEntries.size() - 1).getBalance();
+        BigDecimal growth = lastBalance.subtract(firstBalance);
+
+        if (growth.compareTo(BigDecimal.ZERO) <= 0) {
+            return Optional.empty(); // no positive trend
+        }
+
+        // Average growth per month
+        BigDecimal avgMonthlyGrowth = growth.divide(
+                BigDecimal.valueOf(trendEntries.size() - 1),
+                2,
+                RoundingMode.HALF_UP
+        );
+
+        // Months needed to reach target
+        BigDecimal remaining = target.subtract(currentBalance);
+        BigDecimal monthsNeeded = remaining.divide(avgMonthlyGrowth, 1, RoundingMode.HALF_UP);
+
+        LocalDate estimatedDate = now.plusMonths(monthsNeeded.longValue());
+        return Optional.of(estimatedDate);
+    }
+
+    /**
+     * Simple wrapper class for estimated reach dates (both trend and projection)
+     */
+    public static class EstimatedReachDates {
+        public final LocalDate trend;      // linear regression method
+        public final LocalDate projection; // simple average method
+
+        public EstimatedReachDates(LocalDate trend, LocalDate projection) {
+            this.trend = trend;
+            this.projection = projection;
+        }
+    }
+
+    /**
+     * Returns both estimated reach dates (trend and projection) for a TARGET_BALANCE goal.
+     */
+    public EstimatedReachDates estimatedReachDates(Goal goal, int trendMonths) {
+        Optional<LocalDate> trend = estimatedReachDate(goal, trendMonths);
+        Optional<LocalDate> projection = estimatedReachDateByProjection(goal, trendMonths);
+        return new EstimatedReachDates(
+                trend.orElse(null),
+                projection.orElse(null)
+        );
+    }
+
+    /**
      * Returns monthly chart data for a TARGET_BALANCE goal covering from
      * {@code trendMonths} months ago up to the estimated reach date (capped at +10 years).
      */

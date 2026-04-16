@@ -52,12 +52,15 @@ public class GoalController {
             }
         }
 
-        // Estimated reach dates (LocalDate) for balance goals
-        Map<Long, LocalDate> reachDates = new LinkedHashMap<>();
+        // Estimated reach dates (both trend and projection) for balance goals
+        Map<Long, Map<String, LocalDate>> reachDates = new LinkedHashMap<>();
         for (Goal goal : goals) {
             if (goal.getType() == GoalType.TARGET_BALANCE) {
-                goalService.estimatedReachDate(goal, trendMonths)
-                        .ifPresent(d -> reachDates.put(goal.getId(), d));
+                var dates = goalService.estimatedReachDates(goal, trendMonths);
+                Map<String, LocalDate> dateMap = new LinkedHashMap<>();
+                dateMap.put("trend", dates.trend);
+                dateMap.put("projection", dates.projection);
+                reachDates.put(goal.getId(), dateMap);
             }
         }
 
@@ -83,8 +86,12 @@ public class GoalController {
                 d.put("label", goal.getSavingsAccount().getLabel());
                 d.put("current", current);
                 d.put("target", goal.getTargetAmount());
-                LocalDate rd = reachDates.get(goal.getId());
-                d.put("reachDate", rd != null ? rd.toString().substring(0, 7) : null);
+                var rdates = reachDates.get(goal.getId());
+                if (rdates != null && rdates.get("trend") != null) {
+                    d.put("reachDate", rdates.get("trend").toString().substring(0, 7));
+                } else {
+                    d.put("reachDate", null);
+                }
                 balanceGoalData.add(d);
             }
         }
