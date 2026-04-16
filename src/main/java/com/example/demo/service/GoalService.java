@@ -84,14 +84,11 @@ public class GoalService {
         double monthsFromOrigin = (target.doubleValue() - reg.intercept) / reg.slope;
         if (monthsFromOrigin < 0) return Optional.empty();
 
-        // Convert back to absolute date by adding to origin
-        long monthsToAdd = Math.round(monthsFromOrigin);
+        // Use ceil: first whole-month index where trend value >= target
+        long monthsToAdd = (long) Math.ceil(monthsFromOrigin);
         LocalDate estimatedDate = origin.plusMonths(monthsToAdd);
 
-        // If the estimated date is in the past, adjust based on current trend
-        // but at minimum return a reasonable future date
         if (estimatedDate.isBefore(now)) {
-            // This shouldn't happen if trend is positive, but handle it gracefully
             return Optional.of(now.plusMonths(1));
         }
 
@@ -163,40 +160,16 @@ public class GoalService {
             return Optional.empty(); // already reached
         }
 
-        // Get all entries for this account
-        List<SavingsEntry> entries = savingsService.findEntriesForAccount(goal.getSavingsAccount());
-        if (entries.size() < 2) return Optional.empty();
-
-        // Get entries within the trend period
-        LocalDate trendStart = now.minusMonths(trendMonths);
-        List<SavingsEntry> trendEntries = entries.stream()
-                .filter(e -> !e.getEntryDate().withDayOfMonth(1).isBefore(trendStart.withDayOfMonth(1)))
-                .toList();
-
-        if (trendEntries.size() < 2) return Optional.empty();
-
-        // Simple average: (last - first) / number of months
-        BigDecimal firstBalance = trendEntries.get(0).getBalance();
-        BigDecimal lastBalance = trendEntries.get(trendEntries.size() - 1).getBalance();
-        BigDecimal growth = lastBalance.subtract(firstBalance);
-
-        if (growth.compareTo(BigDecimal.ZERO) <= 0) {
-            return Optional.empty(); // no positive trend
+        BigDecimal monthlyDeposit = goal.getSavingsAccount().getMonthlyDeposit();
+        if (monthlyDeposit == null || monthlyDeposit.compareTo(BigDecimal.ZERO) <= 0) {
+            return Optional.empty(); // no deposit configured
         }
 
-        // Average growth per month
-        BigDecimal avgMonthlyGrowth = growth.divide(
-                BigDecimal.valueOf(trendEntries.size() - 1),
-                2,
-                RoundingMode.HALF_UP
-        );
-
-        // Months needed to reach target
+        // Months needed at constant monthly deposit rate (ceiling = first month balance >= target)
         BigDecimal remaining = target.subtract(currentBalance);
-        BigDecimal monthsNeeded = remaining.divide(avgMonthlyGrowth, 1, RoundingMode.HALF_UP);
+        long monthsNeeded = remaining.divide(monthlyDeposit, 0, RoundingMode.CEILING).longValue();
 
-        LocalDate estimatedDate = now.plusMonths(monthsNeeded.longValue());
-        return Optional.of(estimatedDate);
+        return Optional.of(now.plusMonths(monthsNeeded));
     }
 
     /**

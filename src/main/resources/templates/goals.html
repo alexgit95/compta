@@ -99,29 +99,21 @@
                         <div th:if="${reachDates.containsKey(goal.id) and (reachDates.get(goal.id).get('trend') != null or reachDates.get(goal.id).get('projection') != null)}"
                              style="color:var(--primary); font-weight:600;">
                             🏁 Atteinte estimée :
-                            <div style="display:flex; gap:1rem; margin-top:.25rem;">
-                                <label style="display:flex; align-items:center; gap:.4rem; font-weight:400; color:var(--text); cursor:pointer;">
-                                    <input type="radio" name="estimateMethod-${goal.id}" value="trend" checked
-                                           class="estimate-method-radio" th:data-goal-id="${goal.id}"/>
-                                    <span th:if="${reachDates.get(goal.id).get('trend') != null}"
-                                          th:data-date="${#temporals.format(reachDates.get(goal.id).get('trend'), 'yyyy-MM')}"
-                                          class="estimate-display-trend estimate-date-display">
-                                        Tendance: 
-                                        <strong th:text="${#temporals.format(reachDates.get(goal.id).get('trend'), 'MM/yyyy')}"></strong>
-                                    </span>
-                                    <span th:unless="${reachDates.get(goal.id).get('trend') != null}" 
-                                          style="opacity:.5;">Tendance: n/a</span>
-                                </label>
-                                <label style="display:flex; align-items:center; gap:.4rem; font-weight:400; color:var(--text); cursor:pointer;"
-                                       th:if="${reachDates.get(goal.id).get('projection') != null}">
-                                    <input type="radio" name="estimateMethod-${goal.id}" value="projection"
-                                           class="estimate-method-radio" th:data-goal-id="${goal.id}"/>
-                                    <span th:data-date="${#temporals.format(reachDates.get(goal.id).get('projection'), 'yyyy-MM')}"
-                                          class="estimate-display-projection estimate-date-display">
-                                        Projection: 
-                                        <strong th:text="${#temporals.format(reachDates.get(goal.id).get('projection'), 'MM/yyyy')}"></strong>
-                                    </span>
-                                </label>
+                            <div style="display:flex; gap:1rem; margin-top:.25rem; font-weight:400; color:var(--text);">
+                                <span th:if="${reachDates.get(goal.id).get('trend') != null}"
+                                      th:data-date="${#temporals.format(reachDates.get(goal.id).get('trend'), 'yyyy-MM')}"
+                                      class="estimate-date-display">
+                                    Tendance :
+                                    <strong th:text="${#temporals.format(reachDates.get(goal.id).get('trend'), 'MM/yyyy')}"></strong>
+                                </span>
+                                <span th:unless="${reachDates.get(goal.id).get('trend') != null}"
+                                      style="opacity:.5;">Tendance : n/a</span>
+                                <span th:if="${reachDates.get(goal.id).get('projection') != null}"
+                                      th:data-date="${#temporals.format(reachDates.get(goal.id).get('projection'), 'yyyy-MM')}"
+                                      class="estimate-date-display">
+                                    Projection :
+                                    <strong th:text="${#temporals.format(reachDates.get(goal.id).get('projection'), 'MM/yyyy')}"></strong>
+                                </span>
                             </div>
                         </div>
                         <div th:unless="${reachDates.containsKey(goal.id) and (reachDates.get(goal.id).get('trend') != null or reachDates.get(goal.id).get('projection') != null)}">
@@ -648,20 +640,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const formatted = formatEstimateDate(dateStr);
         elem.innerHTML = label + '<strong>' + formatted + '</strong>';
     });
-    
-    // Initialize estimate method radio buttons
-    document.querySelectorAll('.estimate-method-radio').forEach(radio => {
-        radio.addEventListener('change', function() {
-            updateEstimateDisplay(this.dataset.goalId, this.value);
-        });
-    });
 });
-
-// Update the estimate display when method is changed
-function updateEstimateDisplay(goalId, method) {
-    // This function can be expanded in future to update other UI elements
-    // based on the selected calculation method
-}
 /*]]>*/
 </script>
 </th:block>

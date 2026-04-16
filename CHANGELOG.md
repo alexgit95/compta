@@ -5,7 +5,18 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
-## [0.3.9]
+## [0.3.10]
+
+### Corrigé
+
+- **Objectifs – dates d'atteinte estimées** : les dates affichées correspondent désormais exactement à l'intersection de chaque courbe avec la ligne objectif.
+  - **Tendance** : utilisation de `Math.ceil` au lieu de `Math.round` pour trouver le premier mois entier où la droite de régression linéaire atteint ou dépasse l'objectif.
+  - **Projection** : recalcul basé sur le versement mensuel configuré (`ceil(restant / dépôtMensuel)` mois à partir du solde actuel), pour coïncider avec la courbe de projection affichée sur le graphique.
+
+### Modifié
+
+- **Objectifs – affichage** : suppression des boutons radio à côté des dates d'atteinte estimée. Les valeurs Tendance et Projection sont maintenant affichées directement côte à côte sans interaction.
+
 
 ### Ajouté
 
