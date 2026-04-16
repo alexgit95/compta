@@ -5,6 +5,12 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.3.8]
+
+### Corrigé
+
+- **Objectifs** : correctif courbe tendance pour objectif (calcul date estimée erroné).
+
 ## [0.3.7]
 
 ### Ajouté

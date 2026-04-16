@@ -2,6 +2,7 @@ package com.example.demo.service;
 
 import com.example.demo.model.Goal;
 import com.example.demo.model.GoalType;
+import com.example.demo.model.SavingsEntry;
 import com.example.demo.repository.GoalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,7 +36,8 @@ public class GoalService {
 
     /**
      * Estimates the date when a TARGET_BALANCE goal will be reached using a linear
-     * trend computed over the last {@code trendMonths} months (average monthly growth).
+     * regression trend computed over the last {@code trendMonths} months.
+     * This matches the graphical trend line displayed to the user.
      * Returns empty if the goal is already reached or if the trend is not positive.
      */
     public Optional<LocalDate> estimatedReachDate(Goal goal, int trendMonths) {
@@ -49,23 +51,99 @@ public class GoalService {
             return Optional.empty(); // already reached
         }
 
+        // Get all entries for this account to perform linear regression
+        List<SavingsEntry> entries = savingsService.findEntriesForAccount(goal.getSavingsAccount());
+        if (entries.size() < 2) return Optional.empty();
+
+        // Get real entry dates within the trend period
         LocalDate trendStart = now.minusMonths(trendMonths);
-        BigDecimal balanceAtStart = savingsService.projectBalance(goal.getSavingsAccount(), trendStart);
+        List<SavingsEntry> trendEntries = entries.stream()
+                .filter(e -> !e.getEntryDate().withDayOfMonth(1).isBefore(trendStart.withDayOfMonth(1)))
+                .toList();
 
-        long totalMonths = trendMonths;
-        if (totalMonths <= 0) return Optional.empty();
+        if (trendEntries.size() < 2) return Optional.empty();
 
-        BigDecimal totalGrowth = currentBalance.subtract(balanceAtStart);
-        if (totalGrowth.compareTo(BigDecimal.ZERO) <= 0) return Optional.empty();
+        // Perform linear regression on months from first trend entry
+        LocalDate origin = trendEntries.get(0).getEntryDate().withDayOfMonth(1);
+        double[] xValues = new double[trendEntries.size()];
+        double[] yValues = new double[trendEntries.size()];
 
-        BigDecimal monthlyGrowth = totalGrowth.divide(BigDecimal.valueOf(totalMonths), 4, RoundingMode.HALF_UP);
-        if (monthlyGrowth.compareTo(BigDecimal.ZERO) <= 0) return Optional.empty();
+        for (int i = 0; i < trendEntries.size(); i++) {
+            xValues[i] = monthsDiff(origin, trendEntries.get(i).getEntryDate());
+            yValues[i] = trendEntries.get(i).getBalance().doubleValue();
+        }
 
-        BigDecimal remaining = target.subtract(currentBalance);
-        long monthsToReach = remaining.divide(monthlyGrowth, 0, RoundingMode.CEILING).longValue();
-        if (monthsToReach < 0) return Optional.empty();
+        LinearRegressionResult reg = performLinearRegression(xValues, yValues);
+        if (reg == null || reg.slope <= 0) {
+            return Optional.empty(); // no positive trend
+        }
 
-        return Optional.of(now.plusMonths(monthsToReach));
+        // Calculate months from origin needed to reach target using: balance = intercept + slope * months
+        // target = intercept + slope * monthsFromOrigin
+        // monthsFromOrigin = (target - intercept) / slope
+        double monthsFromOrigin = (target.doubleValue() - reg.intercept) / reg.slope;
+        if (monthsFromOrigin < 0) return Optional.empty();
+
+        // Convert back to absolute date by adding to origin
+        long monthsToAdd = Math.round(monthsFromOrigin);
+        LocalDate estimatedDate = origin.plusMonths(monthsToAdd);
+
+        // If the estimated date is in the past, adjust based on current trend
+        // but at minimum return a reasonable future date
+        if (estimatedDate.isBefore(now)) {
+            // This shouldn't happen if trend is positive, but handle it gracefully
+            return Optional.of(now.plusMonths(1));
+        }
+
+        return Optional.of(estimatedDate);
+    }
+
+    /**
+     * Helper: Calculate months between two dates (same logic as JavaScript monthDiff)
+     */
+    private long monthsDiff(LocalDate from, LocalDate to) {
+        return java.time.temporal.ChronoUnit.MONTHS.between(
+                from.withDayOfMonth(1),
+                to.withDayOfMonth(1)
+        );
+    }
+
+    /**
+     * Linear regression helper
+     */
+    private LinearRegressionResult performLinearRegression(double[] xValues, double[] yValues) {
+        if (xValues.length != yValues.length || xValues.length < 2) return null;
+
+        int n = xValues.length;
+        double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+
+        for (int i = 0; i < n; i++) {
+            sumX += xValues[i];
+            sumY += yValues[i];
+            sumXY += xValues[i] * yValues[i];
+            sumX2 += xValues[i] * xValues[i];
+        }
+
+        double denom = n * sumX2 - sumX * sumX;
+        if (Math.abs(denom) < 1e-10) return null;
+
+        double slope = (n * sumXY - sumX * sumY) / denom;
+        double intercept = (sumY - slope * sumX) / n;
+
+        return new LinearRegressionResult(slope, intercept);
+    }
+
+    /**
+     * Simple data class for linear regression result
+     */
+    private static class LinearRegressionResult {
+        final double slope;
+        final double intercept;
+
+        LinearRegressionResult(double slope, double intercept) {
+            this.slope = slope;
+            this.intercept = intercept;
+        }
     }
 
     /**
