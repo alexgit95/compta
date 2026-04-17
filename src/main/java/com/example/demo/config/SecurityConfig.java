@@ -11,7 +11,11 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.webauthn.management.PublicKeyCredentialUserEntityRepository;
+import org.springframework.security.web.webauthn.management.UserCredentialRepository;
+import org.thymeleaf.ITemplateEngine;
 
 @Configuration
 @EnableWebSecurity
@@ -20,6 +24,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final ApiKeyAuthFilter apiKeyAuthFilter;
+    private final ITemplateEngine templateEngine;
+    private final PublicKeyCredentialUserEntityRepository userEntityRepository;
+    private final UserCredentialRepository credentialRepository;
 
     @Value("${app.remember-me.key}")
     private String rememberMeKey;
@@ -45,7 +52,11 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, UserService userService) throws Exception {
+        PasskeyPageFilter passkeyPageFilter =
+                new PasskeyPageFilter(templateEngine, userEntityRepository, credentialRepository);
+
         http
+            .addFilterBefore(passkeyPageFilter, AuthorizationFilter.class)
             .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/export").hasRole("API")

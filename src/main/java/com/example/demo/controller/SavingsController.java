@@ -45,10 +45,20 @@ public class SavingsController {
                 lastEntries.put(account.getId(), entries.get(entries.size() - 1));
             }
         }
+        // Accounts with no entry or last entry older than 30 days
+        LocalDate thirtyDaysAgo = LocalDate.now().minusDays(30);
+        List<SavingsAccount> staleAccounts = accounts.stream()
+                .filter(a -> {
+                    com.example.demo.model.SavingsEntry last = lastEntries.get(a.getId());
+                    return last == null || last.getEntryDate().isBefore(thirtyDaysAgo);
+                })
+                .toList();
+
         model.addAttribute("accounts", accounts);
         model.addAttribute("chartData", chartData);
         model.addAttribute("currentValues", currentValues);
         model.addAttribute("lastEntries", lastEntries);
+        model.addAttribute("staleAccounts", staleAccounts);
         model.addAttribute("chartMinDate", globalMin.withDayOfMonth(1).toString());
         model.addAttribute("chartMaxDate", globalMax.withDayOfMonth(1).toString());
         // Default view range: 6 months before today to 6 months after today

@@ -5,6 +5,71 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.3.9]
+
+### Ajouté
+
+- **Objectifs** : deux options pour le calcul de la date estimée d'atteinte d'un objectif de solde cible :
+  - **Tendance** : utilise une régression linéaire sur les derniers mois (par défaut, correspond à la courbe affichée).
+  - **Projection** : utilise une simple moyenne arithmétique de la croissance mensuelle (méthode héritée).
+  - Les deux dates sont affichées comme des boutons radio dans l'onglet Objectifs pour permettre à l'utilisateur de choisir sa méthode préférée.
+  
+- **Symbole infini** : lorsqu'une date estimée dépasse 25 ans dans le futur, elle est affichée sous la forme du symbole `∞` au lieu d'une date, pour indiquer une atteinte très lointaine ou improbable.
+  - Implémentation en JavaScript côté client pour le formatage dynamique des dates.
+  - Basé sur `estimatedReachDateByProjection()` dans `GoalService` et mise à jour du template `goals.html` avec les deux options.
+
+### Modifié
+
+- **`GoalService`** : 
+  - Nouvelle méthode `estimatedReachDateByProjection()` pour calculer la date estimée par projection (moyenne simple).
+  - Nouvelle classe interne `EstimatedReachDates` pour encapsuler les deux dates (tendance et projection).
+  - Nouvelle méthode `estimatedReachDates()` qui retourne les deux dates pour un objectif.
+
+- **`GoalController`** : ajustement du mapping pour passer les deux dates estimées (tendance et projection) au template via un `Map<String, LocalDate>` par objectif.
+
+- **`goals.html`** (template) :
+  - Affichage des deux options de date estimée avec des boutons radio.
+  - Ajout d'une classe CSS `estimate-date-display` et de data-attributes pour le formatage dynamique des dates.
+  - Ajout de code JavaScript (`isDateTooFar()`, `formatEstimateDate()`) pour afficher `∞` si la date dépasse 25 ans.
+
+## [0.3.8]
+
+### Corrigé
+
+- **Objectifs** : correctif courbe tendance pour objectif (calcul date estimée erroné).
+
+## [0.3.7]
+
+### Ajouté
+
+- **Alerte épargne non mise à jour** : un bandeau d'avertissement s'affiche en haut de l'onglet Épargne lorsqu'un ou plusieurs comptes n'ont pas reçu de nouvelle saisie depuis plus de 30 jours.
+  - La liste des comptes concernés est affichée avec la date de la dernière saisie (ou « aucune saisie » si aucune entrée n'existe).
+  - Calcul réalisé côté serveur dans `SavingsController` via un attribut `staleAccounts` passé au modèle Thymeleaf.
+  - Affichage conditionnel dans `savings.html` uniquement lorsque la liste est non vide.
+
+## [0.3.6]
+
+### Ajouté
+
+- **Gestion du fuseau horaire** : le fuseau horaire de l'application est maintenant configurable via la variable d'environnement `APP_TIMEZONE` (format IANA, ex: `Europe/Paris`). Cela corrige le décalage horaire constaté sur les données (heure affichée vs heure de saisie réelle).
+  - `DemoApplication.java` : `TimeZone.setDefault` appliqué au démarrage de la JVM depuis `APP_TIMEZONE`.
+  - `application.properties` : `spring.jackson.time-zone` et `spring.jpa.properties.hibernate.jdbc.time_zone` positionnés sur `${APP_TIMEZONE:Europe/Paris}`.
+  - `Dockerfile` : variable `ENV APP_TIMEZONE=Europe/Paris` et argument JVM `-Duser.timezone=Europe/Paris` ajoutés.
+  - Valeur par défaut : `Europe/Paris` (gère automatiquement le passage heure d'hiver/heure d'été).
+
+- **Page d'enrôlement WebAuthn stylisée** (`GET /webauthn/register`) : la page de gestion des clés d'accès (Passkeys) est désormais rendue via un template Thymeleaf intégré dans le design de l'application (navbar, cartes, tableaux, couleurs CSS) au lieu de la page par défaut générée par Spring Security.
+  - Affichage de la liste des clés existantes (nom, date de création, dernière utilisation) avec bouton de suppression.
+  - Formulaire d'enregistrement d'une nouvelle clé avec champ de libellé.
+  - Messages de succès / erreur gérés par `spring-security-webauthn.js` (compatibilité totale avec les endpoints Spring Security existants).
+  - Bloc informatif sur les avantages des Passkeys.
+  - Nouveaux fichiers : `PasskeyPageFilter.java`, `PasskeyDto.java`, `templates/webauthn/register.html`.
+
+## [0.3.5]
+
+### Corrigé
+
+- **WebAuthn / Passkeys PostgreSQL** : correction du type de colonne pour les données binaires dans la table `user_credentials`. Les colonnes `public_key`, `attestation_object` et `attestation_client_data_json` sont maintenant explicitement définies comme `bytea` au lieu de `oid`.
+
 ## [0.3.4] - 2026-04-13
 
 ### Ajouté

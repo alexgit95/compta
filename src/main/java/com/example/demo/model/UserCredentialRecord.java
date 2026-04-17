@@ -25,7 +25,7 @@ public class UserCredentialRecord {
     private String userEntityUserId;
 
     @Lob
-    @Column(name = "public_key", nullable = false)
+    @Column(name = "public_key", nullable = false, columnDefinition = "bytea")
     private byte[] publicKey;
 
     @Column(name = "signature_count")
@@ -47,11 +47,11 @@ public class UserCredentialRecord {
     private Boolean backupState = false;
 
     @Lob
-    @Column(name = "attestation_object")
+    @Column(name = "attestation_object", columnDefinition = "bytea")
     private byte[] attestationObject;
 
     @Lob
-    @Column(name = "attestation_client_data_json")
+    @Column(name = "attestation_client_data_json", columnDefinition = "bytea")
     private byte[] attestationClientDataJson;
 
     private Instant created;
