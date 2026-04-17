@@ -36,8 +36,7 @@ public class GoalService {
 
     /**
      * Estimates the date when a TARGET_BALANCE goal will be reached using a linear
-     * regression trend computed over the last {@code trendMonths} months.
-     * This matches the graphical trend line displayed to the user.
+     * trend computed over the last {@code trendMonths} months (average monthly growth).
      * Returns empty if the goal is already reached or if the trend is not positive.
      */
     public Optional<LocalDate> estimatedReachDate(Goal goal, int trendMonths) {
@@ -51,11 +50,41 @@ public class GoalService {
             return Optional.empty(); // already reached
         }
 
-        // Get all entries for this account to perform linear regression
+        LocalDate trendStart = now.minusMonths(trendMonths);
+        BigDecimal balanceAtStart = savingsService.projectBalance(goal.getSavingsAccount(), trendStart);
+
+        long totalMonths = trendMonths;
+        if (totalMonths <= 0) return Optional.empty();
+
+        BigDecimal totalGrowth = currentBalance.subtract(balanceAtStart);
+        if (totalGrowth.compareTo(BigDecimal.ZERO) <= 0) return Optional.empty();
+
+        BigDecimal monthlyGrowth = totalGrowth.divide(BigDecimal.valueOf(totalMonths), 4, RoundingMode.HALF_UP);
+        if (monthlyGrowth.compareTo(BigDecimal.ZERO) <= 0) return Optional.empty();
+
+        BigDecimal remaining = target.subtract(currentBalance);
+        long monthsToReach = remaining.divide(monthlyGrowth, 0, RoundingMode.CEILING).longValue();
+        if (monthsToReach < 0) return Optional.empty();
+
+        return Optional.of(now.plusMonths(monthsToReach));
+    }
+
+    /**
+     * Estimates the date using linear regression on real SavingsEntry records
+     * (matches the graphical trend line shown in the chart).
+     */
+    public Optional<LocalDate> estimatedReachDateByTrend(Goal goal, int trendMonths) {
+        if (goal.getType() != GoalType.TARGET_BALANCE) return Optional.empty();
+
+        LocalDate now = LocalDate.now();
+        BigDecimal currentBalance = savingsService.projectBalance(goal.getSavingsAccount(), now);
+        BigDecimal target = goal.getTargetAmount();
+
+        if (currentBalance.compareTo(target) >= 0) return Optional.empty();
+
         List<SavingsEntry> entries = savingsService.findEntriesForAccount(goal.getSavingsAccount());
         if (entries.size() < 2) return Optional.empty();
 
-        // Get real entry dates within the trend period
         LocalDate trendStart = now.minusMonths(trendMonths);
         List<SavingsEntry> trendEntries = entries.stream()
                 .filter(e -> !e.getEntryDate().withDayOfMonth(1).isBefore(trendStart.withDayOfMonth(1)))
@@ -63,138 +92,64 @@ public class GoalService {
 
         if (trendEntries.size() < 2) return Optional.empty();
 
-        // Perform linear regression on months from first trend entry
         LocalDate origin = trendEntries.get(0).getEntryDate().withDayOfMonth(1);
-        double[] xValues = new double[trendEntries.size()];
-        double[] yValues = new double[trendEntries.size()];
-
+        double[] x = new double[trendEntries.size()];
+        double[] y = new double[trendEntries.size()];
         for (int i = 0; i < trendEntries.size(); i++) {
-            xValues[i] = monthsDiff(origin, trendEntries.get(i).getEntryDate());
-            yValues[i] = trendEntries.get(i).getBalance().doubleValue();
+            x[i] = java.time.temporal.ChronoUnit.MONTHS.between(origin, trendEntries.get(i).getEntryDate().withDayOfMonth(1));
+            y[i] = trendEntries.get(i).getBalance().doubleValue();
         }
 
-        LinearRegressionResult reg = performLinearRegression(xValues, yValues);
-        if (reg == null || reg.slope <= 0) {
-            return Optional.empty(); // no positive trend
-        }
-
-        // Calculate months from origin needed to reach target using: balance = intercept + slope * months
-        // target = intercept + slope * monthsFromOrigin
-        // monthsFromOrigin = (target - intercept) / slope
-        double monthsFromOrigin = (target.doubleValue() - reg.intercept) / reg.slope;
-        if (monthsFromOrigin < 0) return Optional.empty();
-
-        // Use ceil: first whole-month index where trend value >= target
-        long monthsToAdd = (long) Math.ceil(monthsFromOrigin);
-        LocalDate estimatedDate = origin.plusMonths(monthsToAdd);
-
-        if (estimatedDate.isBefore(now)) {
-            return Optional.of(now.plusMonths(1));
-        }
-
-        return Optional.of(estimatedDate);
-    }
-
-    /**
-     * Helper: Calculate months between two dates (same logic as JavaScript monthDiff)
-     */
-    private long monthsDiff(LocalDate from, LocalDate to) {
-        return java.time.temporal.ChronoUnit.MONTHS.between(
-                from.withDayOfMonth(1),
-                to.withDayOfMonth(1)
-        );
-    }
-
-    /**
-     * Linear regression helper
-     */
-    private LinearRegressionResult performLinearRegression(double[] xValues, double[] yValues) {
-        if (xValues.length != yValues.length || xValues.length < 2) return null;
-
-        int n = xValues.length;
+        int n = x.length;
         double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-
         for (int i = 0; i < n; i++) {
-            sumX += xValues[i];
-            sumY += yValues[i];
-            sumXY += xValues[i] * yValues[i];
-            sumX2 += xValues[i] * xValues[i];
+            sumX += x[i]; sumY += y[i];
+            sumXY += x[i] * y[i]; sumX2 += x[i] * x[i];
         }
-
         double denom = n * sumX2 - sumX * sumX;
-        if (Math.abs(denom) < 1e-10) return null;
-
+        if (Math.abs(denom) < 1e-10) return Optional.empty();
         double slope = (n * sumXY - sumX * sumY) / denom;
         double intercept = (sumY - slope * sumX) / n;
 
-        return new LinearRegressionResult(slope, intercept);
+        if (slope <= 0) return Optional.empty();
+
+        double monthsFromOrigin = (target.doubleValue() - intercept) / slope;
+        if (monthsFromOrigin < 0) return Optional.empty();
+
+        LocalDate estimated = origin.plusMonths((long) Math.ceil(monthsFromOrigin));
+        if (estimated.isBefore(now)) return Optional.of(now.plusMonths(1));
+        return Optional.of(estimated);
     }
 
     /**
-     * Simple data class for linear regression result
+     * Estimates the date using the configured monthly deposit (matches the projection
+     * curve shown in the chart: linear extrapolation from current balance at monthlyDeposit/month).
      */
-    private static class LinearRegressionResult {
-        final double slope;
-        final double intercept;
-
-        LinearRegressionResult(double slope, double intercept) {
-            this.slope = slope;
-            this.intercept = intercept;
-        }
-    }
-
-    /**
-     * Estimates the date when a TARGET_BALANCE goal will be reached using simple
-     * projection (average monthly growth rate) over the last {@code trendMonths} months.
-     * This is the legacy calculation method.
-     * Returns empty if the goal is already reached or if the trend is not positive.
-     */
-    public Optional<LocalDate> estimatedReachDateByProjection(Goal goal, int trendMonths) {
+    public Optional<LocalDate> estimatedReachDateByProjection(Goal goal) {
         if (goal.getType() != GoalType.TARGET_BALANCE) return Optional.empty();
 
         LocalDate now = LocalDate.now();
         BigDecimal currentBalance = savingsService.projectBalance(goal.getSavingsAccount(), now);
         BigDecimal target = goal.getTargetAmount();
 
-        if (currentBalance.compareTo(target) >= 0) {
-            return Optional.empty(); // already reached
-        }
+        if (currentBalance.compareTo(target) >= 0) return Optional.empty();
 
         BigDecimal monthlyDeposit = goal.getSavingsAccount().getMonthlyDeposit();
-        if (monthlyDeposit == null || monthlyDeposit.compareTo(BigDecimal.ZERO) <= 0) {
-            return Optional.empty(); // no deposit configured
-        }
+        if (monthlyDeposit == null || monthlyDeposit.compareTo(BigDecimal.ZERO) <= 0) return Optional.empty();
 
-        // Months needed at constant monthly deposit rate (ceiling = first month balance >= target)
         BigDecimal remaining = target.subtract(currentBalance);
-        long monthsNeeded = remaining.divide(monthlyDeposit, 0, RoundingMode.CEILING).longValue();
-
-        return Optional.of(now.plusMonths(monthsNeeded));
+        long months = remaining.divide(monthlyDeposit, 0, RoundingMode.CEILING).longValue();
+        return Optional.of(now.plusMonths(months));
     }
 
     /**
-     * Simple wrapper class for estimated reach dates (both trend and projection)
+     * Returns both trend (regression) and projection (monthly deposit) reach dates.
      */
-    public static class EstimatedReachDates {
-        public final LocalDate trend;      // linear regression method
-        public final LocalDate projection; // simple average method
-
-        public EstimatedReachDates(LocalDate trend, LocalDate projection) {
-            this.trend = trend;
-            this.projection = projection;
-        }
-    }
-
-    /**
-     * Returns both estimated reach dates (trend and projection) for a TARGET_BALANCE goal.
-     */
-    public EstimatedReachDates estimatedReachDates(Goal goal, int trendMonths) {
-        Optional<LocalDate> trend = estimatedReachDate(goal, trendMonths);
-        Optional<LocalDate> projection = estimatedReachDateByProjection(goal, trendMonths);
-        return new EstimatedReachDates(
-                trend.orElse(null),
-                projection.orElse(null)
-        );
+    public Map<String, LocalDate> estimatedReachDates(Goal goal, int trendMonths) {
+        Map<String, LocalDate> map = new LinkedHashMap<>();
+        map.put("trend", estimatedReachDateByTrend(goal, trendMonths).orElse(null));
+        map.put("projection", estimatedReachDateByProjection(goal).orElse(null));
+        return map;
     }
 
     /**
