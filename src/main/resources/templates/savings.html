@@ -16,7 +16,7 @@
                 Les comptes suivants n'ont pas eu de nouvelle saisie depuis plus de 30 jours :
                 <ul style="margin:.3rem 0 0 1.1rem; padding:0;">
                     <li th:each="a : ${staleAccounts}">
-                        <span th:text="${a.name}"></span>
+                        <span th:text="${a.label}"></span>
                         <span th:if="${lastEntries.containsKey(a.id)}"
                               style="color:#b45309; font-size:.87rem;">
                             — dernière saisie le
