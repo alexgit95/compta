@@ -96,8 +96,26 @@
                            th:value="${varDefaultTo.substring(0,7)}"
                            th:min="${chartMinDate.substring(0,7)}"
                            th:max="${chartMaxDate.substring(0,7)}"/>
-                </div>
-            </div>
+                </div>                <!-- Filtre comptes -->
+                <div class="form-group" style="margin:0; position:relative;">
+                    <label style="font-size:.82rem; color:var(--text-muted);">Comptes</label>
+                    <button type="button" id="varAccountFilterBtn" class="btn btn-outline btn-sm"
+                            onclick="toggleVarFilter(event)" style="white-space:nowrap; min-width:150px; text-align:left;">
+                        Tous les comptes ▾
+                    </button>
+                    <div id="varAccountFilterDropdown"
+                         style="display:none; position:absolute; right:0; top:calc(100% + 4px);
+                                background:var(--card-bg,#fff); border:1px solid var(--border);
+                                border-radius:.5rem; padding:.5rem; z-index:200; min-width:220px;
+                                box-shadow:0 4px 16px rgba(0,0,0,.12);">
+                        <label style="display:flex; align-items:center; gap:.5rem; padding:.3rem .5rem;
+                                      cursor:pointer; font-size:.88rem; font-weight:600; border-bottom:1px solid var(--border); margin-bottom:.3rem;">
+                            <input type="checkbox" id="varSelectAll" onchange="toggleAllVarAccounts(this.checked)" checked/>
+                            Tous les comptes
+                        </label>
+                        <div id="varAccountCheckboxes"></div>
+                    </div>
+                </div>            </div>
         </div>
         <div class="table-wrap">
             <table id="variationTable">
@@ -438,6 +456,75 @@ function renderChart() {
     }
 }
 
+// ── Filtre comptes variation ──────────────────────────────────────────
+function initVarAccountFilter() {
+    const container = document.getElementById('varAccountCheckboxes');
+    for (const account of accounts) {
+        const label = document.createElement('label');
+        label.style.cssText = 'display:flex; align-items:center; gap:.5rem; padding:.3rem .5rem; cursor:pointer; font-size:.88rem;';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = true;
+        cb.dataset.varAccountId = account.id;
+        cb.addEventListener('change', onVarAccountChange);
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(account.label));
+        container.appendChild(label);
+    }
+}
+
+function toggleVarFilter(event) {
+    event.stopPropagation();
+    const dd = document.getElementById('varAccountFilterDropdown');
+    dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleAllVarAccounts(checked) {
+    document.querySelectorAll('[data-var-account-id]').forEach(cb => cb.checked = checked);
+    const selectAll = document.getElementById('varSelectAll');
+    selectAll.indeterminate = false;
+    selectAll.checked = checked;
+    updateVarFilterBtn();
+    renderVariation();
+}
+
+function onVarAccountChange() {
+    const all     = document.querySelectorAll('[data-var-account-id]');
+    const checked = document.querySelectorAll('[data-var-account-id]:checked');
+    const selectAll = document.getElementById('varSelectAll');
+    selectAll.checked       = all.length === checked.length;
+    selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+    updateVarFilterBtn();
+    renderVariation();
+}
+
+function updateVarFilterBtn() {
+    const all     = document.querySelectorAll('[data-var-account-id]');
+    const checked = document.querySelectorAll('[data-var-account-id]:checked');
+    const btn = document.getElementById('varAccountFilterBtn');
+    if (checked.length === all.length) {
+        btn.textContent = 'Tous les comptes ▾';
+    } else if (checked.length === 0) {
+        btn.textContent = 'Aucun compte ▾';
+    } else {
+        btn.textContent = checked.length + ' compte(s) sélectionné(s) ▾';
+    }
+}
+
+function getSelectedVarAccountIds() {
+    return Array.from(document.querySelectorAll('[data-var-account-id]:checked'))
+                .map(cb => Number(cb.dataset.varAccountId));
+}
+
+// Fermer le dropdown si clic en dehors
+document.addEventListener('click', function(e) {
+    const dd  = document.getElementById('varAccountFilterDropdown');
+    const btn = document.getElementById('varAccountFilterBtn');
+    if (dd && btn && !dd.contains(e.target) && e.target !== btn) {
+        dd.style.display = 'none';
+    }
+});
+
 // ── Tableau de variation ──────────────────────────────────────────────
 function fmt(n) {
     return Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
@@ -455,7 +542,10 @@ function renderVariation() {
 
     let totalStart = 0, totalEnd = 0;
 
-    for (const account of accounts) {
+    const selectedIds = getSelectedVarAccountIds();
+    const filteredAccounts = accounts.filter(a => selectedIds.includes(a.id));
+
+    for (const account of filteredAccounts) {
         const byYM = {};
         (allChartData[account.id] || []).forEach(p => { byYM[p.date.substring(0, 7)] = p; });
 
@@ -498,6 +588,7 @@ function renderVariation() {
 }
 
 if (accounts.length > 0) {
+    initVarAccountFilter();
     renderChart();
     renderVariation();
     document.getElementById('rangeFrom').addEventListener('change', renderChart);

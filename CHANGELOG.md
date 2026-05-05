@@ -5,6 +5,17 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.4.0]
+
+### Ajouté
+
+- **Épargne – Variation du solde sur une période** : ajout d'un filtre de sélection des comptes dans l'en-tête de la section.
+  - Un bouton déroulant "Tous les comptes ▾" permet de cocher/décocher individuellement chaque compte épargne.
+  - Une case "Tous les comptes" permet de tout sélectionner ou désélectionner en une action ; elle passe en état indéterminé lors d'une sélection partielle.
+  - Le tableau et la ligne **Total** ne tiennent compte que des comptes sélectionnés.
+  - Par défaut, tous les comptes sont sélectionnés.
+  - Implémentation entièrement côté client (JavaScript), sans modification du contrôleur ni du backend.
+
 ## [0.3.10]
 
 ### Corrigé
