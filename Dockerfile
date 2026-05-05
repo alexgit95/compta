@@ -41,6 +41,10 @@ COPY --from=extractor /app/extracted/spring-boot-loader/    ./
 COPY --from=extractor /app/extracted/snapshot-dependencies/ ./
 COPY --from=extractor /app/extracted/application/           ./
 
+# Sécurité : exécution sous un utilisateur non-root
+RUN groupadd --system appgroup && useradd --system --gid appgroup --no-create-home appuser
+USER appuser
+
 EXPOSE 8080
 
 ENV APP_TIMEZONE=Europe/Paris

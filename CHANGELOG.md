@@ -7,6 +7,12 @@ et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/)
 
 ## [0.4.0]
 
+### Sécurité
+
+- **Dockerfile – utilisateur non-root** : correction de la finding Semgrep `missing-user-entrypoint`.
+  - Création d'un groupe système `appgroup` et d'un utilisateur système `appuser` dans l'image finale.
+  - Instruction `USER appuser` ajoutée avant `EXPOSE`, garantissant que le processus JVM ne s'exécute plus en tant que `root`.
+
 ### Ajouté
 
 - **CI/CD – Analyse qualité Semgrep** : ajout d'un job `semgrep` dans la GitHub Action de build.
