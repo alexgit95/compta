@@ -9,6 +9,13 @@ et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/)
 
 ### Ajouté
 
+- **CI/CD – Analyse qualité Semgrep** : ajout d'un job `semgrep` dans la GitHub Action de build.
+  - Exécuté en parallèle des tests via le container officiel `semgrep/semgrep`.
+  - Règles appliquées : `p/java`, `p/owasp-top-ten`, `p/secrets`.
+  - Les résultats sont exportés au format SARIF et uploadés dans l'onglet **Security > Code scanning** de GitHub.
+  - Le job `build-and-push` dépend désormais de `semgrep` **et** de `test-and-coverage` : un échec Semgrep bloque la publication de l'image Docker.
+  - Support optionnel du token `SEMGREP_APP_TOKEN` (secret Github) pour connecter Semgrep Cloud Platform.
+
 - **Épargne – Variation du solde sur une période** : ajout d'un filtre de sélection des comptes dans l'en-tête de la section.
   - Un bouton déroulant "Tous les comptes ▾" permet de cocher/décocher individuellement chaque compte épargne.
   - Une case "Tous les comptes" permet de tout sélectionner ou désélectionner en une action ; elle passe en état indéterminé lors d'une sélection partielle.
