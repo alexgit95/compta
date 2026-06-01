@@ -45,11 +45,14 @@ class ImportExportServiceTest {
     private GoalRepository goalRepository;
 
     @Autowired
+    private CreditRepository creditRepository;
+
+    @Autowired
     private EntityManager entityManager;
 
     private ImportExportService makeService() {
         return new ImportExportService(categoryRepository, expenseRepository, savingsAccountTypeRepository,
-                savingsAccountRepository, savingsEntryRepository, goalRepository, userRepository, entityManager);
+                savingsAccountRepository, savingsEntryRepository, goalRepository, creditRepository, userRepository, entityManager);
     }
 
     @Test
@@ -60,6 +63,7 @@ class ImportExportServiceTest {
         savingsEntryRepository.deleteAll();
         savingsAccountRepository.deleteAll();
         savingsAccountTypeRepository.deleteAll();
+        creditRepository.deleteAll();
         userRepository.deleteAll();
 
         SavingsAccountType type = new SavingsAccountType("Livret", "💧", 30);
@@ -95,6 +99,18 @@ class ImportExportServiceTest {
         u.setRole(Role.VIEWER);
         userRepository.save(u);
 
+        Credit credit = new Credit();
+        credit.setLabel("Prêt immobilier");
+        credit.setType("Immobilier");
+        credit.setTotalAmount(BigDecimal.valueOf(200000));
+        credit.setRate(BigDecimal.valueOf(1.5));
+        credit.setStartDate(LocalDate.of(2020, 1, 1));
+        credit.setEndDate(LocalDate.of(2040, 1, 1));
+        credit.setMonthlyPayment(BigDecimal.valueOf(900));
+        credit.setRemainingAmount(BigDecimal.valueOf(150000));
+        credit.setRemainingAmountDate(LocalDate.now());
+        creditRepository.save(credit);
+
         ImportExportService svc = makeService();
         ExportDto dto = svc.export();
 
@@ -104,9 +120,11 @@ class ImportExportServiceTest {
         assertEquals(1, dto.getSavingsAccountTypes().size());
         assertEquals(1, dto.getSavingsAccounts().size());
         assertEquals(1, dto.getSavingsEntries().size());
+        assertEquals(1, dto.getCredits().size());
         assertEquals(1, dto.getUsers().size());
         assertEquals("Livret", dto.getSavingsAccountTypes().get(0).getName());
         assertEquals("Livret", dto.getSavingsAccounts().get(0).getAccountType().getName());
+        assertEquals("Prêt immobilier", dto.getCredits().get(0).getLabel());
     }
 
     @Test
@@ -117,6 +135,7 @@ class ImportExportServiceTest {
         savingsEntryRepository.deleteAll();
         savingsAccountRepository.deleteAll();
         savingsAccountTypeRepository.deleteAll();
+        creditRepository.deleteAll();
         userRepository.deleteAll();
 
         Category old = new Category();
@@ -145,6 +164,17 @@ class ImportExportServiceTest {
         se.setBalance(BigDecimal.valueOf(300));
         se.setEntryDate(LocalDate.now());
 
+        Credit credit = new Credit();
+        credit.setLabel("Prêt auto");
+        credit.setType("Automobile");
+        credit.setTotalAmount(BigDecimal.valueOf(15000));
+        credit.setRate(BigDecimal.valueOf(3.5));
+        credit.setStartDate(LocalDate.of(2023, 6, 1));
+        credit.setEndDate(LocalDate.of(2028, 6, 1));
+        credit.setMonthlyPayment(BigDecimal.valueOf(280));
+        credit.setRemainingAmount(BigDecimal.valueOf(10000));
+        credit.setRemainingAmountDate(LocalDate.now());
+
         User u = new User();
         u.setUsername("bob");
         u.setPassword("pw");
@@ -156,6 +186,7 @@ class ImportExportServiceTest {
         dto.setSavingsAccountTypes(List.of(type));
         dto.setSavingsAccounts(List.of(a));
         dto.setSavingsEntries(List.of(se));
+        dto.setCredits(List.of(credit));
         dto.setUsers(List.of(u));
 
         ImportExportService svc = makeService();
@@ -167,6 +198,7 @@ class ImportExportServiceTest {
         assertEquals(1, savingsAccountTypeRepository.count());
         assertEquals(1, savingsAccountRepository.count());
         assertEquals(1, savingsEntryRepository.count());
+        assertEquals(1, creditRepository.count());
         assertEquals(1, userRepository.count());
 
         RecurringExpense saved = expenseRepository.findAll().get(0);
@@ -183,6 +215,13 @@ class ImportExportServiceTest {
         assertEquals("PEA", savedAccount.getAccountType().getName());
         assertEquals("📈", savedAccount.getAccountType().getIcon());
         assertEquals(25, savedAccount.getAccountType().getRecommendedPercentage());
+
+        // Verify credit is preserved
+        Credit savedCredit = creditRepository.findAll().get(0);
+        assertEquals("Prêt auto", savedCredit.getLabel());
+        assertEquals("Automobile", savedCredit.getType());
+        assertEquals(0, BigDecimal.valueOf(15000).compareTo(savedCredit.getTotalAmount()));
+        assertEquals(0, BigDecimal.valueOf(3.5).compareTo(savedCredit.getRate()));
     }
 
     @Test
@@ -193,6 +232,7 @@ class ImportExportServiceTest {
         savingsEntryRepository.deleteAll();
         savingsAccountRepository.deleteAll();
         savingsAccountTypeRepository.deleteAll();
+        creditRepository.deleteAll();
         userRepository.deleteAll();
 
         // Create types
@@ -251,5 +291,73 @@ class ImportExportServiceTest {
         SavingsAccount untyped = accounts.stream()
                 .filter(a -> "Sans type".equals(a.getLabel())).findFirst().orElseThrow();
         assertNull(untyped.getAccountType());
+    }
+
+    @Test
+    void importExportPreservesCreditsRoundTrip() {
+        // Clean state
+        categoryRepository.deleteAll();
+        expenseRepository.deleteAll();
+        savingsEntryRepository.deleteAll();
+        savingsAccountRepository.deleteAll();
+        savingsAccountTypeRepository.deleteAll();
+        creditRepository.deleteAll();
+        userRepository.deleteAll();
+
+        // Create credits
+        Credit credit1 = new Credit();
+        credit1.setLabel("Prêt immobilier");
+        credit1.setType("Immobilier");
+        credit1.setTotalAmount(BigDecimal.valueOf(200000));
+        credit1.setRate(BigDecimal.valueOf(1.5));
+        credit1.setStartDate(LocalDate.of(2020, 1, 1));
+        credit1.setEndDate(LocalDate.of(2040, 1, 1));
+        credit1.setMonthlyPayment(BigDecimal.valueOf(900));
+        credit1.setRemainingAmount(BigDecimal.valueOf(150000));
+        credit1.setRemainingAmountDate(LocalDate.of(2025, 6, 1));
+        creditRepository.save(credit1);
+
+        Credit credit2 = new Credit();
+        credit2.setLabel("Prêt auto");
+        credit2.setType("Automobile");
+        credit2.setTotalAmount(BigDecimal.valueOf(20000));
+        credit2.setRate(BigDecimal.valueOf(3.2));
+        credit2.setStartDate(LocalDate.of(2022, 3, 1));
+        credit2.setEndDate(LocalDate.of(2027, 3, 1));
+        credit2.setMonthlyPayment(BigDecimal.valueOf(360));
+        credit2.setRemainingAmount(BigDecimal.valueOf(8000));
+        credit2.setRemainingAmountDate(LocalDate.of(2025, 6, 1));
+        creditRepository.save(credit2);
+
+        ImportExportService svc = makeService();
+
+        // Export
+        ExportDto exported = svc.export();
+        assertEquals(2, exported.getCredits().size());
+
+        // Import (round trip)
+        svc.importData(exported);
+
+        // Verify credits restored
+        assertEquals(2, creditRepository.count());
+
+        List<Credit> credits = creditRepository.findAll();
+
+        Credit immobilier = credits.stream()
+                .filter(c -> "Prêt immobilier".equals(c.getLabel())).findFirst().orElseThrow();
+        assertEquals("Immobilier", immobilier.getType());
+        assertEquals(0, BigDecimal.valueOf(200000).compareTo(immobilier.getTotalAmount()));
+        assertEquals(0, BigDecimal.valueOf(1.5).compareTo(immobilier.getRate()));
+        assertEquals(LocalDate.of(2020, 1, 1), immobilier.getStartDate());
+        assertEquals(LocalDate.of(2040, 1, 1), immobilier.getEndDate());
+        assertEquals(0, BigDecimal.valueOf(900).compareTo(immobilier.getMonthlyPayment()));
+        assertEquals(0, BigDecimal.valueOf(150000).compareTo(immobilier.getRemainingAmount()));
+        assertEquals(LocalDate.of(2025, 6, 1), immobilier.getRemainingAmountDate());
+
+        Credit auto = credits.stream()
+                .filter(c -> "Prêt auto".equals(c.getLabel())).findFirst().orElseThrow();
+        assertEquals("Automobile", auto.getType());
+        assertEquals(0, BigDecimal.valueOf(20000).compareTo(auto.getTotalAmount()));
+        assertEquals(0, BigDecimal.valueOf(3.2).compareTo(auto.getRate()));
     }
 }

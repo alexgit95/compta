@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout :: layout(~{::content}, ~{::scripts})}">
+<head><title>Modifier crédit</title></head>
+
+<th:block th:fragment="content">
+<div>
+    <div style="margin-bottom:1.5rem;">
+        <a th:href="@{/credits}" class="btn btn-outline btn-sm">← Retour aux crédits</a>
+    </div>
+
+    <div class="card">
+        <div class="card-title">✏️ Modifier le crédit</div>
+        <form th:action="@{/credits/save}" method="post" th:object="${credit}">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <input type="hidden" th:field="*{id}"/>
+            <div class="form-group">
+                <label>Libellé</label>
+                <input type="text" th:field="*{label}" class="form-control" required/>
+            </div>
+            <div class="form-group">
+                <label>Type</label>
+                <select th:field="*{type}" class="form-control" required>
+                    <option value="Immobilier">Immobilier</option>
+                    <option value="Automobile">Automobile</option>
+                    <option value="Consommation">Consommation</option>
+                    <option value="Travaux">Travaux</option>
+                    <option value="Étudiant">Étudiant</option>
+                    <option value="Autre">Autre</option>
+                </select>
+            </div>
+            <div class="flex flex-wrap" style="gap:1rem;">
+                <div class="form-group" style="flex:1; min-width:140px;">
+                    <label>Montant total (€)</label>
+                    <input type="number" th:field="*{totalAmount}" class="form-control" step="0.01" min="0" required/>
+                </div>
+                <div class="form-group" style="flex:1; min-width:140px;">
+                    <label>Taux (%)</label>
+                    <input type="number" th:field="*{rate}" class="form-control" step="0.01" min="0" required/>
+                </div>
+            </div>
+            <div class="flex flex-wrap" style="gap:1rem;">
+                <div class="form-group" style="flex:1; min-width:140px;">
+                    <label>Date de début</label>
+                    <input type="date" id="startDate" name="startDate" class="form-control" required
+                           th:value="${credit.startDate != null ? #temporals.format(credit.startDate, 'yyyy-MM-dd') : ''}"/>
+                </div>
+                <div class="form-group" style="flex:1; min-width:140px;">
+                    <label>Date de fin</label>
+                    <input type="date" id="endDate" name="endDate" class="form-control" required
+                           th:value="${credit.endDate != null ? #temporals.format(credit.endDate, 'yyyy-MM-dd') : ''}"/>
+                </div>
+            </div>
+            <div class="flex flex-wrap" style="gap:1rem;">
+                <div class="form-group" style="flex:1; min-width:140px;">
+                    <label>Mensualité (€)</label>
+                    <input type="number" th:field="*{monthlyPayment}" class="form-control" step="0.01" min="0" required/>
+                </div>
+                <div class="form-group" style="flex:1; min-width:140px;">
+                    <label>Montant restant (€)</label>
+                    <input type="number" th:field="*{remainingAmount}" class="form-control" step="0.01" min="0" required/>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Date du montant restant</label>
+                <input type="date" id="remainingAmountDate" name="remainingAmountDate" class="form-control" required
+                       th:value="${credit.remainingAmountDate != null ? #temporals.format(credit.remainingAmountDate, 'yyyy-MM-dd') : ''}"/>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Enregistrer les modifications</button>
+        </form>
+    </div>
+</div>
+</th:block>
+
+<th:block th:fragment="scripts">
+<script>
+</script>
+</th:block>
+</html>

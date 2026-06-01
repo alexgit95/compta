@@ -20,6 +20,7 @@ public class ImportExportService {
     private final SavingsAccountRepository savingsAccountRepository;
     private final SavingsEntryRepository savingsEntryRepository;
     private final GoalRepository goalRepository;
+    private final CreditRepository creditRepository;
     private final UserRepository userRepository;
     private final EntityManager entityManager;
 
@@ -31,6 +32,7 @@ public class ImportExportService {
         dto.setSavingsAccounts(savingsAccountRepository.findAll());
         dto.setSavingsEntries(savingsEntryRepository.findAll());
         dto.setGoals(goalRepository.findAll());
+        dto.setCredits(creditRepository.findAll());
         dto.setUsers(userRepository.findAll());
         return dto;
     }
@@ -44,6 +46,7 @@ public class ImportExportService {
         expenseRepository.deleteAllInBatch();
         savingsAccountRepository.deleteAllInBatch();
         savingsAccountTypeRepository.deleteAllInBatch();
+        creditRepository.deleteAllInBatch();
         categoryRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
         // Flush deletes to DB before inserting to avoid UNIQUE constraint violations
@@ -127,6 +130,13 @@ public class ImportExportService {
                 u.setId(null);
             }
             userRepository.saveAll(dto.getUsers());
+        }
+
+        if (dto.getCredits() != null) {
+            for (Credit c : dto.getCredits()) {
+                c.setId(null);
+            }
+            creditRepository.saveAll(dto.getCredits());
         }
     }
 }

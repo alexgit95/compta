@@ -13,5 +13,6 @@ public class ExportDto {
     private List<SavingsAccount> savingsAccounts;
     private List<SavingsEntry> savingsEntries;
     private List<Goal> goals;
+    private List<Credit> credits;
     private List<User> users;
 }

@@ -18,6 +18,11 @@ Application Spring Boot de gestion de budget personnel et d'épargne, avec inter
   - Calcul automatique de la date d'atteinte de l'objectif selon la tendance observée sur X années (paramétrable)
   - Alerte automatique si un objectif de solde est atteint mais que des versements sont encore actifs
   - Accès lecture VIEWER/EDITOR/ADMIN, modification réservée EDITOR et ADMIN
+- **Crédits** : suivi de tous vos crédits en cours (immobilier, automobile, consommation, travaux, étudiant, autre)
+  - Ajout / modification / suppression de crédits avec type, montant, taux, dates, mensualité et montant restant
+  - Tableau récapitulatif avec barre de progression du remboursement (%) et durée restante (années/mois)
+  - Cartes synthèse : total mensualités, total restant dû, nombre de crédits
+  - Prise en charge complète dans l'import/export JSON
 - **Administration** (réservée ADMIN) :
   - Gestion des catégories avec icônes emoji
   - Gestion des utilisateurs (3 rôles : ADMIN, EDITOR, VIEWER)

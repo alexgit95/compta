@@ -5,6 +5,45 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.6.1] - 2026-06-01
+
+### Ajouté
+
+- **Crédits – Graphique d'évolution du capital restant dû** : nouveau graphique en courbes (Chart.js) affiché au-dessus du tableau récapitulatif.
+  - Une courbe par crédit (palette de couleurs distinctes) + une courbe **Total** en pointillés gris.
+  - Projection mois par mois via la formule d'amortissement standard (intérêts = capital × taux annuel / 1200).
+  - Chaque courbe **disparaît naturellement** une fois le capital remboursé (valeurs `null` transmises à Chart.js, qui interrompt le tracé).
+  - La courbe Total s'arrête également dès que tous les crédits sont soldés.
+  - Support plein écran (clic sur le graphique) avec zoom/déplacement.
+  - Tooltip formaté en euros avec le détail par crédit.
+
+### Corrigé
+
+- **Crédits – Erreur Thymeleaf à l'affichage** : l'expression SpEL `T(java.math.BigDecimal).valueOf(75)` dans `th:style` provoquait une `SpelEvaluationException` (ambiguïté de méthode). La couleur de la barre de progression est désormais calculée côté serveur dans le contrôleur et transmise via un `Map<Long, String>`.
+
+- **Crédits – Barre de progression invisible** : `th:style` remplaçait l'attribut `style` statique, supprimant `height:100%` et rendant la barre colorée de hauteur nulle. Tous les styles sont maintenant fusionnés dans le seul attribut `th:style`.
+
+- **Crédits – Dates non pré-remplies en modification** : `th:field` utilisait le `ConversionService` pour formater les `LocalDate`, produisant un format localisé incompatible avec `<input type="date">` (qui attend `yyyy-MM-dd`).
+  - Annotation `@DateTimeFormat(iso = DateTimeFormat.ISO.DATE)` ajoutée sur les trois champs date de l'entité `Credit` (parsing lors du submit).
+  - Remplacement de `th:field` par `th:value="${#temporals.format(..., 'yyyy-MM-dd')}"` dans le formulaire de modification.
+
+## [0.6.0] - 2026-06-01
+
+### Ajouté
+
+- **Crédits – Nouvel onglet de suivi des crédits** : gestion complète des crédits en cours (immobilier, automobile, consommation, travaux, étudiant, autre).
+  - Nouvelle entité `Credit` avec libellé, type, montant total, taux, date de début, date de fin, mensualité, montant restant et date du montant restant.
+  - CRUD complet : ajout, modification, suppression de crédits.
+  - Tableau récapitulatif avec barre de progression du pourcentage remboursé et durée restante (en années/mois).
+  - Cartes synthèse affichant le total des mensualités, le total restant dû et le nombre de crédits.
+  - Nouvel onglet 💳 Crédits dans la barre de navigation.
+
+- **Import/Export – Prise en charge des crédits** : les crédits (`credits`) sont inclus dans l'export JSON et correctement restaurés lors de l'import.
+  - Tests unitaires ajoutés : `importExportPreservesCreditsRoundTrip` vérifie un aller-retour complet export → import.
+  - Tests existants mis à jour pour inclure les crédits dans les scénarios d'export et d'import.
+
+- **Tests – CreditServiceTest** : tests unitaires dédiés au service de crédits (CRUD, calcul du pourcentage de remboursement, calcul de la durée restante).
+
 ## [0.5.1] - 2026-06-01
 
 ### Corrigé
