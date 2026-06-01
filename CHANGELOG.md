@@ -5,6 +5,134 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.7.4] - 2026-06-01
+
+### Modifié
+
+- **Épargne – Graphiques** : le graphique unique est scindé en deux graphiques distincts partageant les mêmes contrôles (mode réelles/projection/tendance + plage de dates) :
+  - 🔄 **Livrets & fond de roulement** — comptes non marqués épargne long terme
+  - 📈 **Épargne long terme** — comptes marqués long terme, chacun avec son propre axe Y adapté
+- **Épargne – Tableau de variation** : la section "Variation sur une période" est unifiée dans une seule carte avec une plage de dates partagée et deux sous-tableaux (🔄 fond de roulement / 📈 long terme). Suppression du filtre par compte (devenu inutile avec la séparation par catégorie). Colonne "Variation (%)" retirée, contrôles simplifiés.
+- **Épargne – Organisation de la page** : restructuration pour une lecture cohérente sur PC et mobile — graphiques, variations, répartition par type, conseils, puis fiches de compte.
+
+## [0.7.3] - 2026-06-01
+
+### Modifié
+
+- **Épargne long terme – granularité unitaire** : le flag "épargne long terme" est maintenant porté par chaque **compte épargne** individuellement (et non plus par le type de support). Dans la page *Modifier le compte*, un nouveau sélecteur "Catégorie patrimoine" permet de choisir 🔄 Fond de roulement ou 📈 Épargne long terme pour chaque compte.
+- **Admin Types de support** : suppression du champ catégorie (fond de roulement / long terme) qui n'est plus pertinent au niveau du type.
+- **Patrimoine** : les calculs (capital, graphique, projections) filtrent désormais sur `SavingsAccount.longTermSavings` au lieu de `SavingsAccountType.longTermSavings`.
+
+## [0.7.2] - 2026-06-01
+
+### Ajouté
+
+- **Administration – Types de support** : nouveau champ **catégorie** pour distinguer les types de comptes :
+  - 🔄 **Fond de roulement** — dépenses courantes, travaux, voyages…
+  - 📈 **Épargne long terme** — seuls ces comptes sont pris en compte dans le calcul du patrimoine.
+  - La catégorie est affichée dans la liste des types avec badge coloré.
+  - Les types par défaut sont pré-catégorisés (précaution et livret = fond de roulement ; PEA, fonds euros, SCPI, crypto = long terme).
+- **Patrimoine – Filtrage épargne long terme** : les comptes de type "fond de roulement" sont exclus de tous les calculs de patrimoine (valeur du capital, graphique, projections).
+- **Patrimoine – Note explicative** : rappel sous le graphique indiquant que seule l'épargne long terme est comptabilisée, avec lien direct vers l'administration.
+- **Patrimoine – Tableau de projections** : nouveau tableau sous le graphique présentant le patrimoine brut et net projeté pour 4 horizons (Aujourd'hui, +6 mois, +1 an, +5 ans) avec l'évolution nette par rapport à la situation actuelle.
+
+## [0.7.1] - 2026-06-01
+
+### Ajouté
+
+- **Patrimoine – Paramétrage de la projection** : sélecteur de mode pour le graphique d'évolution.
+
+### Corrigé
+
+- **Patrimoine – Mode Projection descendant** : le mode « Projection » pouvait afficher un patrimoine brut descendant parce que `projectBalance` projetait naïvement depuis d'anciennes entrées d'épargne avec les versements mensuels, créant un décalage lorsqu'une entrée plus récente affichait un solde inférieur. Le futur est maintenant ancré sur le solde total réel d'aujourd'hui + cumul des versements mensuels, garantissant une courbe toujours ascendante.
+  - Mode **Tendance** : projection basée sur une régression linéaire de l'épargne passée.
+  - Mode **Projection** : projection basée sur les versements mensuels programmés de chaque compte.
+  - Choix de la durée d'historique pour la tendance : 6 mois, 1 an, 2 ans ou 5 ans.
+  - Le sélecteur de durée s'affiche/masque dynamiquement selon le mode choisi.
+
+## [0.7.0] - 2026-06-01
+
+### Ajouté
+
+- **Onglet Patrimoine** : nouvelle page accessible depuis la navigation principale.
+  - 4 indicateurs synthétiques : Patrimoine brut, Patrimoine net, Valeur immobilière, Valeur du capital.
+  - Graphique d'évolution (Chart.js) du patrimoine brut et net dans le temps, basé sur l'amortissement des crédits et la tendance d'épargne des 12 derniers mois (régression linéaire).
+  - Support plein écran avec zoom/déplacement.
+- **Administration – Biens immobiliers** : nouvelle sous-section pour déclarer ses biens immobiliers (libellé, valeur d'achat, date d'achat, valeur actuelle sur le marché).
+- **Crédits – Rattachement à un bien immobilier** : possibilité d'associer un crédit à un bien immobilier déclaré dans l'administration.
+- **Import/Export** : les biens immobiliers sont inclus dans l'export JSON et correctement ré-importés avec re-liaison des crédits.
+
+## [0.6.1] - 2026-06-01
+
+### Ajouté
+
+- **Crédits – Graphique d'évolution du capital restant dû** : nouveau graphique en courbes (Chart.js) affiché au-dessus du tableau récapitulatif.
+  - Une courbe par crédit (palette de couleurs distinctes) + une courbe **Total** en pointillés gris.
+  - Projection mois par mois via la formule d'amortissement standard (intérêts = capital × taux annuel / 1200).
+  - Chaque courbe **disparaît naturellement** une fois le capital remboursé (valeurs `null` transmises à Chart.js, qui interrompt le tracé).
+  - La courbe Total s'arrête également dès que tous les crédits sont soldés.
+  - Support plein écran (clic sur le graphique) avec zoom/déplacement.
+  - Tooltip formaté en euros avec le détail par crédit.
+
+### Corrigé
+
+- **Crédits – Erreur Thymeleaf à l'affichage** : l'expression SpEL `T(java.math.BigDecimal).valueOf(75)` dans `th:style` provoquait une `SpelEvaluationException` (ambiguïté de méthode). La couleur de la barre de progression est désormais calculée côté serveur dans le contrôleur et transmise via un `Map<Long, String>`.
+
+- **Crédits – Barre de progression invisible** : `th:style` remplaçait l'attribut `style` statique, supprimant `height:100%` et rendant la barre colorée de hauteur nulle. Tous les styles sont maintenant fusionnés dans le seul attribut `th:style`.
+
+- **Crédits – Dates non pré-remplies en modification** : `th:field` utilisait le `ConversionService` pour formater les `LocalDate`, produisant un format localisé incompatible avec `<input type="date">` (qui attend `yyyy-MM-dd`).
+  - Annotation `@DateTimeFormat(iso = DateTimeFormat.ISO.DATE)` ajoutée sur les trois champs date de l'entité `Credit` (parsing lors du submit).
+  - Remplacement de `th:field` par `th:value="${#temporals.format(..., 'yyyy-MM-dd')}"` dans le formulaire de modification.
+
+## [0.6.0] - 2026-06-01
+
+### Ajouté
+
+- **Crédits – Nouvel onglet de suivi des crédits** : gestion complète des crédits en cours (immobilier, automobile, consommation, travaux, étudiant, autre).
+  - Nouvelle entité `Credit` avec libellé, type, montant total, taux, date de début, date de fin, mensualité, montant restant et date du montant restant.
+  - CRUD complet : ajout, modification, suppression de crédits.
+  - Tableau récapitulatif avec barre de progression du pourcentage remboursé et durée restante (en années/mois).
+  - Cartes synthèse affichant le total des mensualités, le total restant dû et le nombre de crédits.
+  - Nouvel onglet 💳 Crédits dans la barre de navigation.
+
+- **Import/Export – Prise en charge des crédits** : les crédits (`credits`) sont inclus dans l'export JSON et correctement restaurés lors de l'import.
+  - Tests unitaires ajoutés : `importExportPreservesCreditsRoundTrip` vérifie un aller-retour complet export → import.
+  - Tests existants mis à jour pour inclure les crédits dans les scénarios d'export et d'import.
+
+- **Tests – CreditServiceTest** : tests unitaires dédiés au service de crédits (CRUD, calcul du pourcentage de remboursement, calcul de la durée restante).
+
+## [0.5.1] - 2026-06-01
+
+### Corrigé
+
+- **Épargne – Types de support par défaut manquants** : les 6 types de support pré-configurés n'étaient insérés qu'à la condition `count() == 0`, ce qui empêchait leur création si la base de données existait déjà avec des enregistrements.
+  - La logique d'initialisation vérifie désormais l'existence de chaque type **par son nom** (`findByName`) et n'insère que les types absents.
+  - Les types par défaut (Épargne de précaution, Livret, Fonds euros, Actions/PEA, Immobilier, Crypto) sont ainsi toujours présents au démarrage, quelle que soit l'état préalable de la base.
+
+- **Import/Export – Vérification de la conservation du type de support** : confirmation que le champ `accountType` de chaque `SavingsAccount` est bien sérialisé à l'export et correctement re-lié par nom à l'import.
+  - Les 3 tests existants (`exportReturnsAllEntities`, `importDataClearsAndReimports`, `importExportPreservesAccountTypesRoundTrip`) ont été exécutés et passent tous avec succès.
+
+## [0.5.0]
+
+### Ajouté
+
+- **Épargne – Typologie des comptes** : chaque compte épargne peut désormais être associé à un type de support (Livret, PEA, Assurance Vie, SCPI, Crypto, etc.).
+  - Nouvelle entité `SavingsAccountType` avec nom, icône emoji et pourcentage de répartition recommandé.
+  - 5 types de support pré-configurés au premier démarrage (Livret, Fonds euros, Actions/PEA, Immobilier, Crypto).
+  - Les types sont entièrement paramétrables par l'administrateur (ajout, suppression) directement dans l'onglet Épargne.
+  - Un badge avec l'icône du type s'affiche à côté du nom de chaque compte dans les cartes.
+
+- **Épargne – Diagramme de répartition** : ajout d'un graphique en camembert (doughnut) montrant la distribution de l'épargne par type de support.
+  - Tableau récapitulatif associé avec montants et pourcentages par type.
+
+- **Épargne – Conseil de répartition & notation** : section de conseils en bas de l'onglet épargne.
+  - Tableau comparatif allocation actuelle vs allocation recommandée (par type de support).
+  - Indicateur d'écart (montant en surplus ou en déficit par type).
+  - **Épargne de précaution** : jauge visuelle indiquant si l'épargne liquide couvre 3 à 6 mois de revenus, avec messages d'alerte ou de validation.
+
+- **Import/Export – Prise en charge des types de comptes** : les types de support (`savingsAccountTypes`) sont inclus dans l'export JSON et correctement restaurés lors de l'import, y compris le lien entre chaque compte et son type.
+  - Tests unitaires ajoutés : `importExportPreservesAccountTypesRoundTrip` vérifie un aller-retour complet export → import.
+
 ## [0.4.0]
 
 ### Sécurité

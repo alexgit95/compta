@@ -16,9 +16,12 @@ public class ImportExportService {
 
     private final CategoryRepository categoryRepository;
     private final RecurringExpenseRepository expenseRepository;
+    private final SavingsAccountTypeRepository savingsAccountTypeRepository;
     private final SavingsAccountRepository savingsAccountRepository;
     private final SavingsEntryRepository savingsEntryRepository;
     private final GoalRepository goalRepository;
+    private final CreditRepository creditRepository;
+    private final PropertyRepository propertyRepository;
     private final UserRepository userRepository;
     private final EntityManager entityManager;
 
@@ -26,9 +29,12 @@ public class ImportExportService {
         ExportDto dto = new ExportDto();
         dto.setCategories(categoryRepository.findAll());
         dto.setRecurringExpenses(expenseRepository.findAll());
+        dto.setSavingsAccountTypes(savingsAccountTypeRepository.findAll());
         dto.setSavingsAccounts(savingsAccountRepository.findAll());
         dto.setSavingsEntries(savingsEntryRepository.findAll());
         dto.setGoals(goalRepository.findAll());
+        dto.setCredits(creditRepository.findAll());
+        dto.setProperties(propertyRepository.findAll());
         dto.setUsers(userRepository.findAll());
         return dto;
     }
@@ -41,6 +47,9 @@ public class ImportExportService {
         savingsEntryRepository.deleteAllInBatch();
         expenseRepository.deleteAllInBatch();
         savingsAccountRepository.deleteAllInBatch();
+        savingsAccountTypeRepository.deleteAllInBatch();
+        creditRepository.deleteAllInBatch();
+        propertyRepository.deleteAllInBatch();
         categoryRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
         // Flush deletes to DB before inserting to avoid UNIQUE constraint violations
@@ -69,9 +78,26 @@ public class ImportExportService {
             }
         }
 
+        // Import account types
+        List<SavingsAccountType> savedTypes = List.of();
+        if (dto.getSavingsAccountTypes() != null) {
+            for (SavingsAccountType t : dto.getSavingsAccountTypes()) {
+                t.setId(null);
+            }
+            savedTypes = savingsAccountTypeRepository.saveAll(dto.getSavingsAccountTypes());
+        }
+
         if (dto.getSavingsAccounts() != null) {
             for (SavingsAccount a : dto.getSavingsAccounts()) {
                 a.setId(null);
+                // Re-link account type by name
+                if (a.getAccountType() != null) {
+                    final String typeName = a.getAccountType().getName();
+                    savedTypes.stream()
+                            .filter(t -> t.getName().equals(typeName))
+                            .findFirst()
+                            .ifPresentOrElse(a::setAccountType, () -> a.setAccountType(null));
+                }
             }
             List<SavingsAccount> savedAccounts = savingsAccountRepository.saveAll(dto.getSavingsAccounts());
 
@@ -107,6 +133,31 @@ public class ImportExportService {
                 u.setId(null);
             }
             userRepository.saveAll(dto.getUsers());
+        }
+
+        // Import properties
+        List<Property> savedProperties = List.of();
+        if (dto.getProperties() != null) {
+            for (Property p : dto.getProperties()) {
+                p.setId(null);
+            }
+            savedProperties = propertyRepository.saveAll(dto.getProperties());
+        }
+
+        if (dto.getCredits() != null) {
+            final List<Property> finalSavedProperties = savedProperties;
+            for (Credit c : dto.getCredits()) {
+                c.setId(null);
+                // Re-link property by label
+                if (c.getProperty() != null) {
+                    final String propLabel = c.getProperty().getLabel();
+                    finalSavedProperties.stream()
+                            .filter(p -> p.getLabel().equals(propLabel))
+                            .findFirst()
+                            .ifPresentOrElse(c::setProperty, () -> c.setProperty(null));
+                }
+            }
+            creditRepository.saveAll(dto.getCredits());
         }
     }
 }

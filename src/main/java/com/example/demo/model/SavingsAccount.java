@@ -22,4 +22,15 @@ public class SavingsAccount {
     /** Amount deposited each month */
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal monthlyDeposit;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "account_type_id")
+    private SavingsAccountType accountType;
+
+    /**
+     * true  = épargne long terme (prise en compte dans le patrimoine)
+     * false = fond de roulement (dépenses courantes, travaux, voyages…)
+     */
+    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private boolean longTermSavings = false;
 }

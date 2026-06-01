@@ -18,6 +18,8 @@
     <div class="navbar-links">
         <a th:href="@{/budget}" th:classappend="${activePage == 'budget'} ? 'active'">📊 Budget</a>
         <a th:href="@{/savings}" th:classappend="${activePage == 'savings'} ? 'active'">🏦 Épargne</a>
+        <a th:href="@{/credits}" th:classappend="${activePage == 'credits'} ? 'active'">💳 Crédits</a>
+        <a th:href="@{/patrimoine}" th:classappend="${activePage == 'patrimoine'} ? 'active'">🏛️ Patrimoine</a>
         <a th:href="@{/goals}" th:classappend="${activePage == 'goals'} ? 'active'">🎯 Objectifs</a>
         <a sec:authorize="hasRole('ADMIN')"
            th:href="@{/admin/categories}"

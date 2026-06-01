@@ -109,8 +109,12 @@ body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color
 /* ===== Grid ===== */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.5rem; }
+.grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 1.5rem; }
 @media (max-width: 768px) {
-  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+}
+@media (min-width: 769px) and (max-width: 1024px) {
+  .grid-4 { grid-template-columns: repeat(2,1fr); }
 }
 
 /* ===== Forms ===== */
@@ -155,6 +159,7 @@ tbody tr:hover { background: #f9fbff; }
 .badge-admin  { background: #fef0e7; color: #e67e22; }
 .badge-editor { background: #eafaf1; color: var(--success); }
 .badge-viewer { background: #eaf2fb; color: var(--primary); }
+.badge-type   { background: #f0f0ff; color: #555; font-size: .72rem; margin-left: .4rem; }
 
 /* ===== Chart ===== */
 .chart-container { position: relative; height: 280px; width: 100%; }

@@ -27,6 +27,33 @@
                     <input type="number" step="0.01" min="0" th:field="*{monthlyDeposit}" class="form-control" required/>
                 </div>
             </div>
+            <div class="form-group">
+                <label>Type de support</label>
+                <select name="accountTypeId" class="form-control">
+                    <option value="">— Aucun —</option>
+                    <option th:each="type : ${accountTypes}"
+                            th:value="${type.id}"
+                            th:selected="${account.accountType != null && account.accountType.id == type.id}"
+                            th:text="${type.icon + ' ' + type.name}"></option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Catégorie patrimoine *</label>
+                <div class="flex" style="gap:1rem; flex-wrap:wrap;">
+                    <label style="font-weight:400; display:flex; align-items:center; gap:.4rem; cursor:pointer;">
+                        <input type="radio" name="longTermSavings" value="false"
+                               th:checked="${!account.longTermSavings}"/>
+                        🔄 Fond de roulement
+                        <span class="text-muted" style="font-size:.78rem;">(dépenses, travaux, voyages…)</span>
+                    </label>
+                    <label style="font-weight:400; display:flex; align-items:center; gap:.4rem; cursor:pointer;">
+                        <input type="radio" name="longTermSavings" value="true"
+                               th:checked="${account.longTermSavings}"/>
+                        📈 Épargne long terme
+                        <span class="text-muted" style="font-size:.78rem;">(pris en compte dans le patrimoine)</span>
+                    </label>
+                </div>
+            </div>
             <div class="flex" style="justify-content:flex-end;">
                 <button type="submit" class="btn btn-primary">Enregistrer</button>
             </div>

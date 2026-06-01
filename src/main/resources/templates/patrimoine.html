@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout(~{::content}, ~{::scripts})}">
+<head><title>Patrimoine</title></head>
+
+<th:block th:fragment="content">
+<div>
+    <h1 style="font-size:1.4rem; font-weight:800; margin-bottom:1.5rem;">🏛️ Patrimoine</h1>
+
+    <!-- Summary cards -->
+    <div class="grid-4" style="margin-bottom:2rem;">
+        <div class="card text-center">
+            <div class="text-muted" style="font-size:.85rem; margin-bottom:.25rem;">Patrimoine brut</div>
+            <div style="font-size:1.5rem; font-weight:700; color:var(--primary);"
+                 th:text="${#numbers.formatDecimal(grossPatrimoine, 1, 'COMMA', 2, 'POINT')} + ' €'"></div>
+            <div class="text-muted" style="font-size:.75rem;">Immobilier + Capital</div>
+        </div>
+        <div class="card text-center">
+            <div class="text-muted" style="font-size:.85rem; margin-bottom:.25rem;">Patrimoine net</div>
+            <div style="font-size:1.5rem; font-weight:700; color:var(--success, #16a34a);"
+                 th:text="${#numbers.formatDecimal(netPatrimoine, 1, 'COMMA', 2, 'POINT')} + ' €'"></div>
+            <div class="text-muted" style="font-size:.75rem;">Brut − Crédits restants</div>
+        </div>
+        <div class="card text-center">
+            <div class="text-muted" style="font-size:.85rem; margin-bottom:.25rem;">Valeur immobilière</div>
+            <div style="font-size:1.5rem; font-weight:700; color:#8b5cf6;"
+                 th:text="${#numbers.formatDecimal(propertyValue, 1, 'COMMA', 2, 'POINT')} + ' €'"></div>
+            <div class="text-muted" style="font-size:.75rem;">Biens au prix du marché</div>
+        </div>
+        <div class="card text-center">
+            <div class="text-muted" style="font-size:.85rem; margin-bottom:.25rem;">Valeur du capital</div>
+            <div style="font-size:1.5rem; font-weight:700; color:#f59e0b;"
+                 th:text="${#numbers.formatDecimal(savingsValue, 1, 'COMMA', 2, 'POINT')} + ' €'"></div>
+            <div class="text-muted" style="font-size:.75rem;">Épargne long terme uniquement</div>
+        </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="card">
+        <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem;">
+            <span>📈 Évolution du patrimoine</span>
+            <button class="btn btn-outline btn-sm" onclick="openChartFullscreen('patrimoine')" title="Plein écran">⛶</button>
+        </div>
+
+        <!-- Chart controls -->
+        <div class="flex flex-wrap" style="gap:.75rem; align-items:center; margin-bottom:1rem;">
+            <div class="flex" style="gap:.4rem; align-items:center;">
+                <button id="btn-mode-tendance" class="btn btn-sm"
+                        th:classappend="${selectedMode == 'tendance'} ? 'btn-primary' : 'btn-outline'"
+                        onclick="setPatrimoineMode('tendance')">📉 Tendance</button>
+                <button id="btn-mode-projection" class="btn btn-sm"
+                        th:classappend="${selectedMode == 'projection'} ? 'btn-primary' : 'btn-outline'"
+                        onclick="setPatrimoineMode('projection')">📊 Projection</button>
+            </div>
+            <div id="duree-selector" class="flex" style="gap:.4rem; align-items:center;"
+                 th:style="${selectedMode == 'projection'} ? 'display:none' : ''">
+                <span class="text-muted" style="font-size:.82rem;">Basé sur :</span>
+                <button class="btn btn-sm" th:classappend="${selectedDuree == 6} ? 'btn-primary' : 'btn-outline'"
+                        onclick="setPatrimoineDuree(6)">6 mois</button>
+                <button class="btn btn-sm" th:classappend="${selectedDuree == 12} ? 'btn-primary' : 'btn-outline'"
+                        onclick="setPatrimoineDuree(12)">1 an</button>
+                <button class="btn btn-sm" th:classappend="${selectedDuree == 24} ? 'btn-primary' : 'btn-outline'"
+                        onclick="setPatrimoineDuree(24)">2 ans</button>
+                <button class="btn btn-sm" th:classappend="${selectedDuree == 60} ? 'btn-primary' : 'btn-outline'"
+                        onclick="setPatrimoineDuree(60)">5 ans</button>
+            </div>
+        </div>
+
+        <div style="position:relative; height:350px;">
+            <canvas id="patrimoineChart"></canvas>
+        </div>
+        <div class="text-muted" style="font-size:.8rem; margin-top:.5rem;">
+            <span th:if="${selectedMode == 'tendance'}">
+                Projection basée sur l'amortissement des crédits et la tendance de l'épargne sur
+                <span th:switch="${selectedDuree}">
+                    <span th:case="6">les 6 derniers mois</span>
+                    <span th:case="12">les 12 derniers mois</span>
+                    <span th:case="24">les 2 dernières années</span>
+                    <span th:case="60">les 5 dernières années</span>
+                </span> (régression linéaire).
+            </span>
+            <span th:if="${selectedMode == 'projection'}">
+                Projection basée sur l'amortissement des crédits et les versements mensuels programmés sur chaque compte.
+            </span>
+        </div>
+        <div style="margin-top:.6rem; padding:.5rem .75rem; background:rgba(99,102,241,.07); border-left:3px solid #6366f1; border-radius:.3rem; font-size:.8rem; color:var(--text-muted);">
+            ℹ️ Seuls les comptes épargne catégorisés <strong>📈 Épargne long terme</strong> sont pris en compte dans le calcul du patrimoine (biens immobiliers + capital long terme − crédits). Les comptes <em>🔄 fond de roulement</em> (dépenses courantes, travaux, voyages…) sont exclus. Modifiez la catégorie de chaque compte dans <a th:href="@{/savings}">Épargne</a> → ✏️ Modifier le compte.
+        </div>
+    </div>
+
+    <!-- Projection table -->
+    <div class="card" th:if="${not #lists.isEmpty(projectionRows)}">
+        <div class="card-title">🔭 Projections à terme</div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Horizon</th>
+                    <th class="text-right">Patrimoine brut</th>
+                    <th class="text-right">Patrimoine net</th>
+                    <th class="text-right">Évolution nette</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="row, stat : ${projectionRows}"
+                    th:with="baseNet=${projectionRows[0]['net']}">
+                    <td><strong th:text="${row['label']}"></strong></td>
+                    <td class="text-right" style="font-weight:600; color:var(--primary);"
+                        th:text="${#numbers.formatDecimal(row['gross'], 1, 'COMMA', 2, 'POINT')} + ' €'"></td>
+                    <td class="text-right" style="font-weight:600; color:var(--success, #16a34a);"
+                        th:text="${#numbers.formatDecimal(row['net'], 1, 'COMMA', 2, 'POINT')} + ' €'"></td>
+                    <td class="text-right">
+                        <span th:if="${stat.first}" class="text-muted" style="font-size:.82rem;">—</span>
+                        <span th:unless="${stat.first}"
+                              th:with="diff=${row['net'] - baseNet}"
+                              th:style="${diff >= 0} ? 'color:#16a34a; font-weight:600;' : 'color:#ef4444; font-weight:600;'"
+                              th:text="${diff >= 0 ? '+' : ''} + ${#numbers.formatDecimal(diff, 1, 'COMMA', 2, 'POINT')} + ' €'">
+                        </span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="text-muted" style="font-size:.78rem; margin-top:.5rem;">
+            L'évolution est calculée par rapport au patrimoine net actuel.
+        </div>
+    </div>
+</div>
+</th:block>
+
+<th:block th:fragment="scripts">
+<script th:inline="javascript">
+(function() {
+    var labels = /*[[${chartLabels}]]*/ [];
+    var grossData = /*[[${chartGrossData}]]*/ [];
+    var netData = /*[[${chartNetData}]]*/ [];
+    var currentMode = /*[[${selectedMode}]]*/ 'tendance';
+    var currentDuree = /*[[${selectedDuree}]]*/ 12;
+
+    function buildChart(canvas) {
+        return new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Patrimoine brut',
+                        data: grossData,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59,130,246,0.08)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        pointHitRadius: 8,
+                        borderWidth: 2.5
+                    },
+                    {
+                        label: 'Patrimoine net',
+                        data: netData,
+                        borderColor: '#16a34a',
+                        backgroundColor: 'rgba(22,163,74,0.08)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        pointHitRadius: 8,
+                        borderWidth: 2.5
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.dataset.label + ': ' + new Intl.NumberFormat('fr-FR', {style:'currency', currency:'EUR'}).format(ctx.parsed.y);
+                            }
+                        }
+                    },
+                    zoom: {
+                        pan: { enabled: true, mode: 'x' },
+                        zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
+                    },
+                    annotation: {
+                        annotations: {
+                            todayLine: {
+                                type: 'line',
+                                xMin: labels.indexOf(new Date().toLocaleDateString('fr-FR', {month:'short', year:'numeric'}).replace('.', '')),
+                                xMax: labels.indexOf(new Date().toLocaleDateString('fr-FR', {month:'short', year:'numeric'}).replace('.', '')),
+                                borderColor: 'rgba(107,114,128,0.5)',
+                                borderWidth: 1,
+                                borderDash: [4, 4],
+                                label: { content: "Aujourd'hui", display: true, position: 'start', font: { size: 10 } }
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: function(v) { return new Intl.NumberFormat('fr-FR', {notation:'compact', compactDisplay:'short'}).format(v) + ' €'; }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    var ctx = document.getElementById('patrimoineChart');
+    if (labels.length > 0) {
+        buildChart(ctx);
+    }
+
+    // Register fullscreen builder
+    fsChartBuilders['patrimoine'] = buildChart;
+
+    // Navigation helpers — reload page with new params
+    window.setPatrimoineMode = function(mode) {
+        var duree = (mode === 'projection') ? currentDuree : currentDuree;
+        window.location.href = '/patrimoine?mode=' + mode + '&duree=' + duree;
+    };
+    window.setPatrimoineDuree = function(duree) {
+        window.location.href = '/patrimoine?mode=' + currentMode + '&duree=' + duree;
+    };
+})();
+</script>
+</th:block>
+</html>

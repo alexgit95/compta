@@ -7,17 +7,42 @@ Application Spring Boot de gestion de budget personnel et d'épargne, avec inter
 - **Budget** : saisie du solde courant, projection quotidienne jusqu'en fin de mois avec graphique d'évolution
 - **Dépenses récurrentes** : gestion des dépenses mensuelles (catégorie, libellé, montant, jour du mois)
 - **Épargne** : suivi de plusieurs comptes épargne avec simulation de progression et graphiques
+  - Catégorie par compte : 🔄 **Fond de roulement** (livrets, dépenses courantes) ou 📈 **Épargne long terme** (prise en compte dans le patrimoine)
+  - Deux graphiques séparés partageant les mêmes contrôles (mode réelles / + projection / + tendance 2 ans, plage de dates, plein écran) :
+    - 🔄 Livrets & fond de roulement
+    - 📈 Épargne long terme
+  - Tableau de variation sur une période : plage de dates partagée, deux sous-tableaux par catégorie (solde début, solde fin, variation €)
+  - Typage des comptes par type de support (Livret, PEA, Assurance Vie, SCPI, Crypto…) avec icônes
+  - Diagramme en donut de la répartition par type de support
+  - Conseil de répartition : comparaison allocation actuelle vs recommandée
+  - Indicateur d'épargne de précaution (objectif 3 à 6 mois de revenus en liquidités)
 - **Objectifs** : définition d'objectifs de solde cible ou de versement mensuel par compte épargne :
   - Histogramme comparant versements actuels vs objectifs de versement mensuel
   - Histogramme synthèse solde actuel vs solde objectif + courbes de tendance par compte
   - Calcul automatique de la date d'atteinte de l'objectif selon la tendance observée sur X années (paramétrable)
   - Alerte automatique si un objectif de solde est atteint mais que des versements sont encore actifs
   - Accès lecture VIEWER/EDITOR/ADMIN, modification réservée EDITOR et ADMIN
+- **Crédits** : suivi de tous vos crédits en cours (immobilier, automobile, consommation, travaux, étudiant, autre)
+  - Ajout / modification / suppression de crédits avec type, montant, taux, dates, mensualité et montant restant
+  - Tableau récapitulatif avec barre de progression du remboursement (%) et durée restante (années/mois)
+  - Cartes synthèse : total mensualités, total restant dû, nombre de crédits
+  - Rattachement optionnel d'un crédit à un bien immobilier déclaré en administration
+  - Prise en charge complète dans l'import/export JSON
+- **Patrimoine** : vue consolidée de votre patrimoine financier
+  - 4 indicateurs synthétiques : Patrimoine brut, Patrimoine net, Valeur immobilière, Valeur du capital (épargne long terme)
+  - Patrimoine brut = valeur actuelle des biens immobiliers + somme des comptes épargne catégorisés **📈 Épargne long terme**
+  - Patrimoine net = patrimoine brut − restant dû de tous les crédits
+  - La catégorie (🔄 Fond de roulement / 📈 Épargne long terme) se configure **compte par compte** dans Épargne → ✏️ Modifier le compte
+  - Graphique d'évolution dans le temps (patrimoine brut et net) basé sur l'amortissement des crédits et la tendance d'épargne des N derniers mois (régression linéaire) ou les versements mensuels (projection)
+  - Tableau de projections : patrimoine brut et net estimé à horizon 6 mois, 1 an et 5 ans avec évolution nette
+  - Support plein écran avec zoom et déplacement
 - **Administration** (réservée ADMIN) :
   - Gestion des catégories avec icônes emoji
+  - Gestion des biens immobiliers (libellé, valeur d'achat, date d'achat, valeur actuelle sur le marché)
+  - Gestion des types de support d'épargne avec icônes et pourcentages recommandés
   - Gestion des utilisateurs (3 rôles : ADMIN, EDITOR, VIEWER)
   - Clés API avec nom, durée de validité et historique d'utilisation
-  - Import / Export JSON de toute la base de données
+  - Import / Export JSON de toute la base de données (incluant biens immobiliers et liaisons crédit-bien)
 - **Sécurité** : login/mot de passe, passkeys (WebAuthn / FIDO2), remember-me 12 mois, protection CSRF
 - **API REST** : endpoint `/api/export` protégé par clé API
 
