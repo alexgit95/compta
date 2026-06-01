@@ -67,6 +67,17 @@
                 <input type="date" id="remainingAmountDate" name="remainingAmountDate" class="form-control" required
                        th:value="${credit.remainingAmountDate != null ? #temporals.format(credit.remainingAmountDate, 'yyyy-MM-dd') : ''}"/>
             </div>
+            <div class="form-group">
+                <label>Bien immobilier rattaché</label>
+                <select name="property" class="form-control">
+                    <option value="">— Aucun —</option>
+                    <option th:each="prop : ${properties}"
+                            th:value="${prop.id}"
+                            th:text="${prop.label}"
+                            th:selected="${credit.property != null and credit.property.id == prop.id}">
+                    </option>
+                </select>
+            </div>
             <button type="submit" class="btn btn-primary" style="width:100%;">Enregistrer les modifications</button>
         </form>
     </div>

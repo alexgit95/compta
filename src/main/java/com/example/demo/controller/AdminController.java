@@ -28,6 +28,7 @@ public class AdminController {
     private final ApiKeyService apiKeyService;
     private final ImportExportService importExportService;
     private final SavingsAccountTypeService savingsAccountTypeService;
+    private final PropertyService propertyService;
     private final ObjectMapper objectMapper;
 
     // --- Categories ---
@@ -160,5 +161,28 @@ public class AdminController {
         savingsAccountTypeService.delete(id);
         ra.addFlashAttribute("success", "Type de support supprimé.");
         return "redirect:/admin/account-types";
+    }
+
+    // --- Properties (Biens immobiliers) ---
+
+    @GetMapping("/properties")
+    public String properties(Model model) {
+        model.addAttribute("properties", propertyService.findAll());
+        model.addAttribute("property", new Property());
+        return "admin/properties";
+    }
+
+    @PostMapping("/properties/save")
+    public String saveProperty(@ModelAttribute Property property, RedirectAttributes ra) {
+        propertyService.save(property);
+        ra.addFlashAttribute("success", "Bien immobilier enregistré.");
+        return "redirect:/admin/properties";
+    }
+
+    @PostMapping("/properties/{id}/delete")
+    public String deleteProperty(@PathVariable Long id, RedirectAttributes ra) {
+        propertyService.delete(id);
+        ra.addFlashAttribute("success", "Bien immobilier supprimé.");
+        return "redirect:/admin/properties";
     }
 }

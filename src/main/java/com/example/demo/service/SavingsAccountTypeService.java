@@ -20,12 +20,12 @@ public class SavingsAccountTypeService {
     @Transactional
     public void initDefaultTypes() {
         List<SavingsAccountType> defaults = List.of(
-            new SavingsAccountType("Épargne de précaution", "🛟", 15),
-            new SavingsAccountType("Livret (épargne liquide)", "💧", 15),
+            new SavingsAccountType("Épargne de précaution",       "🛟",  15),
+            new SavingsAccountType("Livret (épargne liquide)",    "💧",  15),
             new SavingsAccountType("Fonds euros (assurance vie)", "🛡️", 25),
-            new SavingsAccountType("Actions / PEA", "📈", 25),
-            new SavingsAccountType("Immobilier (SCPI/SCI)", "🏠", 15),
-            new SavingsAccountType("Crypto / Alternatif", "₿", 5)
+            new SavingsAccountType("Actions / PEA",               "📈",  25),
+            new SavingsAccountType("Immobilier (SCPI/SCI)",       "🏠",  15),
+            new SavingsAccountType("Crypto / Alternatif",         "₿",    5)
         );
         for (SavingsAccountType type : defaults) {
             if (repository.findByName(type.getName()).isEmpty()) {

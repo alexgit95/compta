@@ -48,11 +48,14 @@ class ImportExportServiceTest {
     private CreditRepository creditRepository;
 
     @Autowired
+    private PropertyRepository propertyRepository;
+
+    @Autowired
     private EntityManager entityManager;
 
     private ImportExportService makeService() {
         return new ImportExportService(categoryRepository, expenseRepository, savingsAccountTypeRepository,
-                savingsAccountRepository, savingsEntryRepository, goalRepository, creditRepository, userRepository, entityManager);
+                savingsAccountRepository, savingsEntryRepository, goalRepository, creditRepository, propertyRepository, userRepository, entityManager);
     }
 
     @Test
@@ -359,5 +362,135 @@ class ImportExportServiceTest {
         assertEquals("Automobile", auto.getType());
         assertEquals(0, BigDecimal.valueOf(20000).compareTo(auto.getTotalAmount()));
         assertEquals(0, BigDecimal.valueOf(3.2).compareTo(auto.getRate()));
+    }
+
+    @Test
+    void importExportPreservesPropertiesRoundTrip() {
+        // Clean state
+        categoryRepository.deleteAll();
+        expenseRepository.deleteAll();
+        savingsEntryRepository.deleteAll();
+        savingsAccountRepository.deleteAll();
+        savingsAccountTypeRepository.deleteAll();
+        creditRepository.deleteAll();
+        propertyRepository.deleteAll();
+        userRepository.deleteAll();
+
+        // Create properties
+        Property prop1 = new Property();
+        prop1.setLabel("Appartement Paris");
+        prop1.setPurchaseValue(BigDecimal.valueOf(250000));
+        prop1.setPurchaseDate(LocalDate.of(2018, 6, 15));
+        prop1.setCurrentValue(BigDecimal.valueOf(310000));
+        propertyRepository.save(prop1);
+
+        Property prop2 = new Property();
+        prop2.setLabel("Maison Bordeaux");
+        prop2.setPurchaseValue(BigDecimal.valueOf(180000));
+        prop2.setPurchaseDate(LocalDate.of(2021, 3, 1));
+        prop2.setCurrentValue(BigDecimal.valueOf(210000));
+        propertyRepository.save(prop2);
+
+        ImportExportService svc = makeService();
+
+        // Export
+        ExportDto exported = svc.export();
+        assertNotNull(exported.getProperties());
+        assertEquals(2, exported.getProperties().size());
+
+        // Import (round trip)
+        svc.importData(exported);
+
+        // Verify properties restored
+        assertEquals(2, propertyRepository.count());
+
+        List<Property> properties = propertyRepository.findAll();
+
+        Property paris = properties.stream()
+                .filter(p -> "Appartement Paris".equals(p.getLabel())).findFirst().orElseThrow();
+        assertEquals(0, BigDecimal.valueOf(250000).compareTo(paris.getPurchaseValue()));
+        assertEquals(LocalDate.of(2018, 6, 15), paris.getPurchaseDate());
+        assertEquals(0, BigDecimal.valueOf(310000).compareTo(paris.getCurrentValue()));
+
+        Property bordeaux = properties.stream()
+                .filter(p -> "Maison Bordeaux".equals(p.getLabel())).findFirst().orElseThrow();
+        assertEquals(0, BigDecimal.valueOf(180000).compareTo(bordeaux.getPurchaseValue()));
+        assertEquals(LocalDate.of(2021, 3, 1), bordeaux.getPurchaseDate());
+        assertEquals(0, BigDecimal.valueOf(210000).compareTo(bordeaux.getCurrentValue()));
+    }
+
+    @Test
+    void importExportPreservesCreditPropertyLinkRoundTrip() {
+        // Clean state
+        categoryRepository.deleteAll();
+        expenseRepository.deleteAll();
+        savingsEntryRepository.deleteAll();
+        savingsAccountRepository.deleteAll();
+        savingsAccountTypeRepository.deleteAll();
+        creditRepository.deleteAll();
+        propertyRepository.deleteAll();
+        userRepository.deleteAll();
+
+        // Create a property
+        Property prop = new Property();
+        prop.setLabel("Appartement Lyon");
+        prop.setPurchaseValue(BigDecimal.valueOf(200000));
+        prop.setPurchaseDate(LocalDate.of(2020, 1, 15));
+        prop.setCurrentValue(BigDecimal.valueOf(240000));
+        propertyRepository.save(prop);
+
+        // Create a credit linked to the property
+        Credit credit = new Credit();
+        credit.setLabel("Prêt Lyon");
+        credit.setType("Immobilier");
+        credit.setTotalAmount(BigDecimal.valueOf(180000));
+        credit.setRate(BigDecimal.valueOf(1.2));
+        credit.setStartDate(LocalDate.of(2020, 2, 1));
+        credit.setEndDate(LocalDate.of(2045, 2, 1));
+        credit.setMonthlyPayment(BigDecimal.valueOf(750));
+        credit.setRemainingAmount(BigDecimal.valueOf(160000));
+        credit.setRemainingAmountDate(LocalDate.of(2025, 6, 1));
+        credit.setProperty(prop);
+        creditRepository.save(credit);
+
+        // Create a credit NOT linked to any property
+        Credit creditNoProperty = new Credit();
+        creditNoProperty.setLabel("Prêt conso");
+        creditNoProperty.setType("Consommation");
+        creditNoProperty.setTotalAmount(BigDecimal.valueOf(5000));
+        creditNoProperty.setRate(BigDecimal.valueOf(4.0));
+        creditNoProperty.setStartDate(LocalDate.of(2024, 1, 1));
+        creditNoProperty.setEndDate(LocalDate.of(2026, 1, 1));
+        creditNoProperty.setMonthlyPayment(BigDecimal.valueOf(220));
+        creditNoProperty.setRemainingAmount(BigDecimal.valueOf(2000));
+        creditNoProperty.setRemainingAmountDate(LocalDate.of(2025, 6, 1));
+        creditNoProperty.setProperty(null);
+        creditRepository.save(creditNoProperty);
+
+        ImportExportService svc = makeService();
+
+        // Export
+        ExportDto exported = svc.export();
+        assertEquals(1, exported.getProperties().size());
+        assertEquals(2, exported.getCredits().size());
+
+        // Import (round trip)
+        svc.importData(exported);
+
+        // Verify property-credit link restored
+        assertEquals(1, propertyRepository.count());
+        assertEquals(2, creditRepository.count());
+
+        List<Credit> credits = creditRepository.findAll();
+
+        Credit linkedCredit = credits.stream()
+                .filter(c -> "Prêt Lyon".equals(c.getLabel())).findFirst().orElseThrow();
+        assertNotNull(linkedCredit.getProperty());
+        assertEquals("Appartement Lyon", linkedCredit.getProperty().getLabel());
+        assertEquals(0, BigDecimal.valueOf(240000).compareTo(linkedCredit.getProperty().getCurrentValue()));
+
+        Credit unlinkedCredit = credits.stream()
+                .filter(c -> "Prêt conso".equals(c.getLabel())).findFirst().orElseThrow();
+        assertNull(unlinkedCredit.getProperty());
     }
 }

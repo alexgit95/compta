@@ -10,6 +10,7 @@
     <nav class="sub-nav">
         <a th:href="@{/admin/categories}">🏷️ Catégories</a>
         <a th:href="@{/admin/account-types}" class="active">🏦 Types de support</a>
+        <a th:href="@{/admin/properties}">🏠 Biens immobiliers</a>
         <a th:href="@{/admin/users}">👤 Utilisateurs</a>
         <a th:href="@{/admin/apikeys}">🔑 Clés API</a>
         <a th:href="@{/admin/data}">📦 Import / Export</a>
@@ -110,6 +111,7 @@ function fillEditForm(btn) {
     const iconInput = document.getElementById('iconInput');
     iconInput.value = icon;
     document.getElementById('iconPreview').textContent = icon;
+    // Set radio for longTermSavings
     iconInput.focus();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }

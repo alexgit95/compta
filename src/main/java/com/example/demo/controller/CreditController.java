@@ -2,6 +2,7 @@ package com.example.demo.controller;
 
 import com.example.demo.model.Credit;
 import com.example.demo.service.CreditService;
+import com.example.demo.service.PropertyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 public class CreditController {
 
     private final CreditService creditService;
+    private final PropertyService propertyService;
 
     @GetMapping
     public String list(Model model) {
@@ -127,6 +129,7 @@ public class CreditController {
     public String editForm(@PathVariable Long id, Model model) {
         Credit credit = creditService.findById(id);
         model.addAttribute("credit", credit);
+        model.addAttribute("properties", propertyService.findAll());
         model.addAttribute("activePage", "credits");
         return "credit-form";
     }

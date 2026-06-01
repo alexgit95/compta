@@ -21,6 +21,7 @@ public class ImportExportService {
     private final SavingsEntryRepository savingsEntryRepository;
     private final GoalRepository goalRepository;
     private final CreditRepository creditRepository;
+    private final PropertyRepository propertyRepository;
     private final UserRepository userRepository;
     private final EntityManager entityManager;
 
@@ -33,6 +34,7 @@ public class ImportExportService {
         dto.setSavingsEntries(savingsEntryRepository.findAll());
         dto.setGoals(goalRepository.findAll());
         dto.setCredits(creditRepository.findAll());
+        dto.setProperties(propertyRepository.findAll());
         dto.setUsers(userRepository.findAll());
         return dto;
     }
@@ -47,6 +49,7 @@ public class ImportExportService {
         savingsAccountRepository.deleteAllInBatch();
         savingsAccountTypeRepository.deleteAllInBatch();
         creditRepository.deleteAllInBatch();
+        propertyRepository.deleteAllInBatch();
         categoryRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
         // Flush deletes to DB before inserting to avoid UNIQUE constraint violations
@@ -132,9 +135,27 @@ public class ImportExportService {
             userRepository.saveAll(dto.getUsers());
         }
 
+        // Import properties
+        List<Property> savedProperties = List.of();
+        if (dto.getProperties() != null) {
+            for (Property p : dto.getProperties()) {
+                p.setId(null);
+            }
+            savedProperties = propertyRepository.saveAll(dto.getProperties());
+        }
+
         if (dto.getCredits() != null) {
+            final List<Property> finalSavedProperties = savedProperties;
             for (Credit c : dto.getCredits()) {
                 c.setId(null);
+                // Re-link property by label
+                if (c.getProperty() != null) {
+                    final String propLabel = c.getProperty().getLabel();
+                    finalSavedProperties.stream()
+                            .filter(p -> p.getLabel().equals(propLabel))
+                            .findFirst()
+                            .ifPresentOrElse(c::setProperty, () -> c.setProperty(null));
+                }
             }
             creditRepository.saveAll(dto.getCredits());
         }

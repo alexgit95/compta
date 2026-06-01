@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout(~{::content}, ~{::scripts})}">
+<head><title>Administration – Biens immobiliers</title></head>
+
+<th:block th:fragment="content">
+<div>
+    <h1 style="font-size:1.4rem; font-weight:800; margin-bottom:1rem;">⚙️ Administration</h1>
+
+    <nav class="sub-nav">
+        <a th:href="@{/admin/categories}">🏷️ Catégories</a>
+        <a th:href="@{/admin/account-types}">🏦 Types de support</a>
+        <a th:href="@{/admin/properties}" class="active">🏠 Biens immobiliers</a>
+        <a th:href="@{/admin/users}">👤 Utilisateurs</a>
+        <a th:href="@{/admin/apikeys}">🔑 Clés API</a>
+        <a th:href="@{/admin/data}">📦 Import / Export</a>
+    </nav>
+
+    <div class="grid-2">
+        <!-- Create/edit form -->
+        <div class="card">
+            <div class="card-title">Nouveau bien immobilier</div>
+            <form th:action="@{/admin/properties/save}" th:object="${property}" method="post">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="hidden" th:field="*{id}"/>
+                <div class="form-group">
+                    <label>Libellé *</label>
+                    <input type="text" th:field="*{label}" class="form-control" required placeholder="ex. Appartement Paris"/>
+                </div>
+                <div class="form-group">
+                    <label>Valeur d'achat (€) *</label>
+                    <input type="number" th:field="*{purchaseValue}" class="form-control" step="0.01" min="0" required/>
+                </div>
+                <div class="form-group">
+                    <label>Date d'achat *</label>
+                    <input type="date" id="purchaseDate" name="purchaseDate" class="form-control" required
+                           th:value="${property.purchaseDate != null ? #temporals.format(property.purchaseDate, 'yyyy-MM-dd') : ''}"/>
+                </div>
+                <div class="form-group">
+                    <label>Valeur actuelle sur le marché (€) *</label>
+                    <input type="number" th:field="*{currentValue}" class="form-control" step="0.01" min="0" required/>
+                </div>
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </form>
+        </div>
+
+        <!-- Properties list -->
+        <div class="card">
+            <div class="card-title">Biens immobiliers existants</div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Libellé</th>
+                        <th class="text-right">Valeur d'achat</th>
+                        <th>Date d'achat</th>
+                        <th class="text-right">Valeur actuelle</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(properties)}">
+                        <td colspan="5" style="text-align:center;" class="text-muted">Aucun bien immobilier.</td>
+                    </tr>
+                    <tr th:each="prop : ${properties}">
+                        <td th:text="${prop.label}"></td>
+                        <td class="text-right" th:text="${#numbers.formatDecimal(prop.purchaseValue, 1, 'COMMA', 2, 'POINT')} + ' €'"></td>
+                        <td th:text="${#temporals.format(prop.purchaseDate, 'dd/MM/yyyy')}"></td>
+                        <td class="text-right" th:text="${#numbers.formatDecimal(prop.currentValue, 1, 'COMMA', 2, 'POINT')} + ' €'"></td>
+                        <td>
+                            <button class="btn btn-outline btn-sm"
+                                    th:data-id="${prop.id}"
+                                    th:data-label="${prop.label}"
+                                    th:data-purchase-value="${prop.purchaseValue}"
+                                    th:data-purchase-date="${#temporals.format(prop.purchaseDate, 'yyyy-MM-dd')}"
+                                    th:data-current-value="${prop.currentValue}"
+                                    onclick="fillEditForm(this)">
+                                ✏️
+                            </button>
+                            <form th:action="@{/admin/properties/{id}/delete(id=${prop.id})}"
+                                  method="post" style="display:inline"
+                                  onsubmit="return confirm('Supprimer ce bien immobilier ?')">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                <button class="btn btn-danger btn-sm">🗑️</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+</th:block>
+
+<th:block th:fragment="scripts">
+<script>
+function fillEditForm(btn) {
+    document.getElementById('id').value = btn.dataset.id;
+    document.querySelector('[name="label"]').value = btn.dataset.label;
+    document.querySelector('[name="purchaseValue"]').value = btn.dataset.purchaseValue;
+    document.getElementById('purchaseDate').value = btn.dataset.purchaseDate;
+    document.querySelector('[name="currentValue"]').value = btn.dataset.currentValue;
+}
+</script>
+</th:block>
+</html>

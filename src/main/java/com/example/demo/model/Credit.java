@@ -47,4 +47,8 @@ public class Credit {
     @Column(nullable = false)
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate remainingAmountDate;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "property_id")
+    private Property property;
 }

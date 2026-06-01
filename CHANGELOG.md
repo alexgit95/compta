@@ -5,6 +5,63 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.7.4] - 2026-06-01
+
+### Modifié
+
+- **Épargne – Graphiques** : le graphique unique est scindé en deux graphiques distincts partageant les mêmes contrôles (mode réelles/projection/tendance + plage de dates) :
+  - 🔄 **Livrets & fond de roulement** — comptes non marqués épargne long terme
+  - 📈 **Épargne long terme** — comptes marqués long terme, chacun avec son propre axe Y adapté
+- **Épargne – Tableau de variation** : la section "Variation sur une période" est unifiée dans une seule carte avec une plage de dates partagée et deux sous-tableaux (🔄 fond de roulement / 📈 long terme). Suppression du filtre par compte (devenu inutile avec la séparation par catégorie). Colonne "Variation (%)" retirée, contrôles simplifiés.
+- **Épargne – Organisation de la page** : restructuration pour une lecture cohérente sur PC et mobile — graphiques, variations, répartition par type, conseils, puis fiches de compte.
+
+## [0.7.3] - 2026-06-01
+
+### Modifié
+
+- **Épargne long terme – granularité unitaire** : le flag "épargne long terme" est maintenant porté par chaque **compte épargne** individuellement (et non plus par le type de support). Dans la page *Modifier le compte*, un nouveau sélecteur "Catégorie patrimoine" permet de choisir 🔄 Fond de roulement ou 📈 Épargne long terme pour chaque compte.
+- **Admin Types de support** : suppression du champ catégorie (fond de roulement / long terme) qui n'est plus pertinent au niveau du type.
+- **Patrimoine** : les calculs (capital, graphique, projections) filtrent désormais sur `SavingsAccount.longTermSavings` au lieu de `SavingsAccountType.longTermSavings`.
+
+## [0.7.2] - 2026-06-01
+
+### Ajouté
+
+- **Administration – Types de support** : nouveau champ **catégorie** pour distinguer les types de comptes :
+  - 🔄 **Fond de roulement** — dépenses courantes, travaux, voyages…
+  - 📈 **Épargne long terme** — seuls ces comptes sont pris en compte dans le calcul du patrimoine.
+  - La catégorie est affichée dans la liste des types avec badge coloré.
+  - Les types par défaut sont pré-catégorisés (précaution et livret = fond de roulement ; PEA, fonds euros, SCPI, crypto = long terme).
+- **Patrimoine – Filtrage épargne long terme** : les comptes de type "fond de roulement" sont exclus de tous les calculs de patrimoine (valeur du capital, graphique, projections).
+- **Patrimoine – Note explicative** : rappel sous le graphique indiquant que seule l'épargne long terme est comptabilisée, avec lien direct vers l'administration.
+- **Patrimoine – Tableau de projections** : nouveau tableau sous le graphique présentant le patrimoine brut et net projeté pour 4 horizons (Aujourd'hui, +6 mois, +1 an, +5 ans) avec l'évolution nette par rapport à la situation actuelle.
+
+## [0.7.1] - 2026-06-01
+
+### Ajouté
+
+- **Patrimoine – Paramétrage de la projection** : sélecteur de mode pour le graphique d'évolution.
+
+### Corrigé
+
+- **Patrimoine – Mode Projection descendant** : le mode « Projection » pouvait afficher un patrimoine brut descendant parce que `projectBalance` projetait naïvement depuis d'anciennes entrées d'épargne avec les versements mensuels, créant un décalage lorsqu'une entrée plus récente affichait un solde inférieur. Le futur est maintenant ancré sur le solde total réel d'aujourd'hui + cumul des versements mensuels, garantissant une courbe toujours ascendante.
+  - Mode **Tendance** : projection basée sur une régression linéaire de l'épargne passée.
+  - Mode **Projection** : projection basée sur les versements mensuels programmés de chaque compte.
+  - Choix de la durée d'historique pour la tendance : 6 mois, 1 an, 2 ans ou 5 ans.
+  - Le sélecteur de durée s'affiche/masque dynamiquement selon le mode choisi.
+
+## [0.7.0] - 2026-06-01
+
+### Ajouté
+
+- **Onglet Patrimoine** : nouvelle page accessible depuis la navigation principale.
+  - 4 indicateurs synthétiques : Patrimoine brut, Patrimoine net, Valeur immobilière, Valeur du capital.
+  - Graphique d'évolution (Chart.js) du patrimoine brut et net dans le temps, basé sur l'amortissement des crédits et la tendance d'épargne des 12 derniers mois (régression linéaire).
+  - Support plein écran avec zoom/déplacement.
+- **Administration – Biens immobiliers** : nouvelle sous-section pour déclarer ses biens immobiliers (libellé, valeur d'achat, date d'achat, valeur actuelle sur le marché).
+- **Crédits – Rattachement à un bien immobilier** : possibilité d'associer un crédit à un bien immobilier déclaré dans l'administration.
+- **Import/Export** : les biens immobiliers sont inclus dans l'export JSON et correctement ré-importés avec re-liaison des crédits.
+
 ## [0.6.1] - 2026-06-01
 
 ### Ajouté
