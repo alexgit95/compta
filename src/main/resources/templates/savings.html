@@ -144,7 +144,15 @@
     <div th:each="account : ${accounts}" class="card">
         <div class="savings-card-header">
             <div>
-                <div style="font-size:1.1rem; font-weight:700;" th:text="${account.label}"></div>
+                <div style="font-size:1.1rem; font-weight:700;">
+                    <span th:if="${account.accountType != null}" th:text="${account.accountType.icon}"
+                          style="margin-right:.3rem;" title="Type de support"></span>
+                    <span th:text="${account.label}"></span>
+                    <span th:if="${account.accountType != null}"
+                          class="badge badge-type"
+                          th:text="${account.accountType.name}"
+                          th:title="${account.accountType.name}"></span>
+                </div>
                 <div class="savings-meta"
                      th:text="${#numbers.formatDecimal(account.monthlyDeposit, 1, 2) + ' € / mois'}"></div>
             </div>
@@ -209,6 +217,15 @@
                     <input type="number" step="0.01" min="0" th:field="*{monthlyDeposit}"
                            class="form-control" required placeholder="200.00"/>
                 </div>
+                <div class="form-group">
+                    <label>Type de support</label>
+                    <select name="accountTypeId" class="form-control">
+                        <option value="">— Aucun —</option>
+                        <option th:each="type : ${accountTypes}"
+                                th:value="${type.id}"
+                                th:text="${type.icon + ' ' + type.name}"></option>
+                    </select>
+                </div>
                 <div class="flex" style="justify-content:flex-end; gap:.75rem; margin-top:1rem;">
                     <button type="button" class="btn btn-outline"
                             onclick="document.getElementById('modal-new-account').style.display='none'">
@@ -219,6 +236,86 @@
             </form>
         </div>
     </div>
+
+    <!-- Pie chart: distribution by support type -->
+    <div class="card" th:if="${!#lists.isEmpty(accounts)}">
+        <div class="card-title">🥧 Répartition par type de support</div>
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:2rem;">
+            <div style="width:300px; height:300px; margin:0 auto;">
+                <canvas id="pieChart"></canvas>
+            </div>
+            <div style="flex:1; min-width:200px;">
+                <table style="width:100%; font-size:.9rem;">
+                    <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th class="text-right">Montant</th>
+                        <th class="text-right">%</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="entry : ${distributionByType}">
+                        <td>
+                            <span th:text="${iconByType[entry.key]}"></span>
+                            <span th:text="${entry.key}"></span>
+                        </td>
+                        <td class="text-right" th:text="${#numbers.formatDecimal(entry.value, 1, 2) + ' €'}"></td>
+                        <td class="text-right" th:text="${pctByType[entry.key]}"></td>
+                    </tr>
+                    </tbody>
+                    <tfoot style="font-weight:700; border-top:2px solid var(--border);">
+                    <tr>
+                        <td>Total</td>
+                        <td class="text-right" th:text="${#numbers.formatDecimal(totalSavings, 1, 2) + ' €'}"></td>
+                        <td class="text-right">100 %</td>
+                    </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scoring & advice section -->
+    <div class="card" th:if="${!#lists.isEmpty(accounts)}">
+        <div class="card-title">💡 Conseil de répartition</div>
+        <p class="text-muted" style="font-size:.88rem; margin-bottom:1rem;">
+            Comparaison entre votre allocation actuelle et la répartition recommandée.
+            Les pourcentages recommandés sont paramétrables dans la gestion des types de support.
+        </p>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Type de support</th>
+                    <th class="text-right">Actuel (%)</th>
+                    <th class="text-right">Recommandé (%)</th>
+                    <th class="text-right">Montant actuel</th>
+                    <th class="text-right">Montant recommandé</th>
+                    <th class="text-right">Écart</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="a : ${allocationAdvice}">
+                    <td>
+                        <span th:text="${a['icon']}"></span>
+                        <span th:text="${a['type']}"></span>
+                    </td>
+                    <td class="text-right" th:text="${#numbers.formatDecimal(a['actualPct'], 1, 1) + ' %'}"></td>
+                    <td class="text-right" th:text="${a['recommendedPct'] + ' %'}"></td>
+                    <td class="text-right" th:text="${#numbers.formatDecimal(a['actualAmount'], 1, 2) + ' €'}"></td>
+                    <td class="text-right" th:text="${#numbers.formatDecimal(a['recommendedAmount'], 1, 2) + ' €'}"></td>
+                    <td class="text-right"
+                        th:classappend="${a['diff'].signum() >= 0 ? '' : 'amount-negative'}"
+                        th:style="${a['diff'].signum() >= 0 ? 'color:var(--success)' : 'color:var(--danger)'}">
+                        <span th:text="${(a['diff'].signum() >= 0 ? '+' : '') + #numbers.formatDecimal(a['diff'], 1, 2) + ' €'}"></span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
 </div>
 </th:block>
 
@@ -614,6 +711,55 @@ fsChartBuilders['savingsChart'] = function(canvas) {
         options: buildChartOptions(labels, suggestedMax, true)
     });
 };
+
+// ── Pie chart: distribution by support type ──────────────────────────────────
+const distributionByType = /*[[${distributionByType}]]*/ {};
+const iconByType = /*[[${iconByType}]]*/ {};
+
+function renderPieChart() {
+    const canvas = document.getElementById('pieChart');
+    if (!canvas) return;
+
+    const labels = Object.keys(distributionByType);
+    const data = Object.values(distributionByType);
+    const colors = ['#4f6ef7', '#27ae60', '#e74c3c', '#f39c12', '#8e44ad', '#1abc9c', '#e67e22', '#2980b9'];
+
+    new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+            labels: labels.map((l, i) => (iconByType[l] || '') + ' ' + l),
+            datasets: [{
+                data: data,
+                backgroundColor: colors.slice(0, labels.length),
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { padding: 15, boxWidth: 14 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct = total > 0 ? (ctx.parsed / total * 100).toFixed(1) : 0;
+                            return ctx.label + ' : ' + Number(ctx.parsed).toLocaleString('fr-FR', {minimumFractionDigits:2}) + ' € (' + pct + ' %)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+if (accounts.length > 0) {
+    renderPieChart();
+}
 /*]]>*/
 </script>
 </th:block>

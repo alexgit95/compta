@@ -27,6 +27,7 @@ public class AdminController {
     private final UserService userService;
     private final ApiKeyService apiKeyService;
     private final ImportExportService importExportService;
+    private final SavingsAccountTypeService savingsAccountTypeService;
     private final ObjectMapper objectMapper;
 
     // --- Categories ---
@@ -136,5 +137,28 @@ public class AdminController {
         importExportService.importData(dto);
         ra.addFlashAttribute("success", "Import effectué avec succès.");
         return "redirect:/admin/data";
+    }
+
+    // --- Account Types ---
+
+    @GetMapping("/account-types")
+    public String accountTypes(Model model) {
+        model.addAttribute("accountTypes", savingsAccountTypeService.findAll());
+        model.addAttribute("accountType", new SavingsAccountType());
+        return "admin/account-types";
+    }
+
+    @PostMapping("/account-types/save")
+    public String saveAccountType(@ModelAttribute SavingsAccountType type, RedirectAttributes ra) {
+        savingsAccountTypeService.save(type);
+        ra.addFlashAttribute("success", "Type de support enregistré.");
+        return "redirect:/admin/account-types";
+    }
+
+    @PostMapping("/account-types/{id}/delete")
+    public String deleteAccountType(@PathVariable Long id, RedirectAttributes ra) {
+        savingsAccountTypeService.delete(id);
+        ra.addFlashAttribute("success", "Type de support supprimé.");
+        return "redirect:/admin/account-types";
     }
 }

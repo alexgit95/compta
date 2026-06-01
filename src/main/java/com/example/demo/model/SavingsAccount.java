@@ -22,4 +22,8 @@ public class SavingsAccount {
     /** Amount deposited each month */
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal monthlyDeposit;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "account_type_id")
+    private SavingsAccountType accountType;
 }

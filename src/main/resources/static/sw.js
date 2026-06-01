@@ -1,4 +1,4 @@
-const CACHE_NAME = 'budget-app-v1';
+const CACHE_NAME = 'budget-app-v2';
 const PRECACHE_URLS = [
   '/',
   '/css/app.css',
@@ -22,6 +22,9 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then(cached => cached || fetch(event.request))
+    caches.match(event.request).then(cached => {
+      if (cached) return cached;
+      return fetch(event.request).catch(() => new Response('', { status: 503 }));
+    })
   );
 });

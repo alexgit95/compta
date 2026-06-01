@@ -30,6 +30,9 @@ class ImportExportServiceTest {
     private RecurringExpenseRepository expenseRepository;
 
     @Autowired
+    private SavingsAccountTypeRepository savingsAccountTypeRepository;
+
+    @Autowired
     private SavingsAccountRepository savingsAccountRepository;
 
     @Autowired
@@ -45,8 +48,8 @@ class ImportExportServiceTest {
     private EntityManager entityManager;
 
     private ImportExportService makeService() {
-        return new ImportExportService(categoryRepository, expenseRepository, savingsAccountRepository,
-                savingsEntryRepository, goalRepository, userRepository, entityManager);
+        return new ImportExportService(categoryRepository, expenseRepository, savingsAccountTypeRepository,
+                savingsAccountRepository, savingsEntryRepository, goalRepository, userRepository, entityManager);
     }
 
     @Test
@@ -56,7 +59,11 @@ class ImportExportServiceTest {
         expenseRepository.deleteAll();
         savingsEntryRepository.deleteAll();
         savingsAccountRepository.deleteAll();
+        savingsAccountTypeRepository.deleteAll();
         userRepository.deleteAll();
+
+        SavingsAccountType type = new SavingsAccountType("Livret", "💧", 30);
+        savingsAccountTypeRepository.save(type);
 
         Category cat = new Category();
         cat.setName("Housing");
@@ -73,6 +80,7 @@ class ImportExportServiceTest {
         SavingsAccount acc = new SavingsAccount();
         acc.setLabel("Rainy");
         acc.setMonthlyDeposit(BigDecimal.valueOf(50));
+        acc.setAccountType(type);
         savingsAccountRepository.save(acc);
 
         SavingsEntry entry = new SavingsEntry();
@@ -93,9 +101,12 @@ class ImportExportServiceTest {
         assertNotNull(dto);
         assertEquals(1, dto.getCategories().size());
         assertEquals(1, dto.getRecurringExpenses().size());
+        assertEquals(1, dto.getSavingsAccountTypes().size());
         assertEquals(1, dto.getSavingsAccounts().size());
         assertEquals(1, dto.getSavingsEntries().size());
         assertEquals(1, dto.getUsers().size());
+        assertEquals("Livret", dto.getSavingsAccountTypes().get(0).getName());
+        assertEquals("Livret", dto.getSavingsAccounts().get(0).getAccountType().getName());
     }
 
     @Test
@@ -105,6 +116,7 @@ class ImportExportServiceTest {
         expenseRepository.deleteAll();
         savingsEntryRepository.deleteAll();
         savingsAccountRepository.deleteAll();
+        savingsAccountTypeRepository.deleteAll();
         userRepository.deleteAll();
 
         Category old = new Category();
@@ -121,9 +133,12 @@ class ImportExportServiceTest {
         e.setDayOfMonth(5);
         e.setCategory(c);
 
+        SavingsAccountType type = new SavingsAccountType("PEA", "📈", 25);
+
         SavingsAccount a = new SavingsAccount();
         a.setLabel("Holiday");
         a.setMonthlyDeposit(BigDecimal.valueOf(100));
+        a.setAccountType(type);
 
         SavingsEntry se = new SavingsEntry();
         se.setSavingsAccount(a);
@@ -138,6 +153,7 @@ class ImportExportServiceTest {
         ExportDto dto = new ExportDto();
         dto.setCategories(List.of(c));
         dto.setRecurringExpenses(List.of(e));
+        dto.setSavingsAccountTypes(List.of(type));
         dto.setSavingsAccounts(List.of(a));
         dto.setSavingsEntries(List.of(se));
         dto.setUsers(List.of(u));
@@ -148,6 +164,7 @@ class ImportExportServiceTest {
         // after import, old should be gone and new counts match DTO
         assertEquals(1, categoryRepository.count());
         assertEquals(1, expenseRepository.count());
+        assertEquals(1, savingsAccountTypeRepository.count());
         assertEquals(1, savingsAccountRepository.count());
         assertEquals(1, savingsEntryRepository.count());
         assertEquals(1, userRepository.count());
@@ -159,5 +176,80 @@ class ImportExportServiceTest {
         SavingsEntry savedEntry = savingsEntryRepository.findAll().get(0);
         assertNotNull(savedEntry.getSavingsAccount());
         assertEquals("Holiday", savedEntry.getSavingsAccount().getLabel());
+
+        // Verify account type is preserved
+        SavingsAccount savedAccount = savingsAccountRepository.findAll().get(0);
+        assertNotNull(savedAccount.getAccountType());
+        assertEquals("PEA", savedAccount.getAccountType().getName());
+        assertEquals("📈", savedAccount.getAccountType().getIcon());
+        assertEquals(25, savedAccount.getAccountType().getRecommendedPercentage());
+    }
+
+    @Test
+    void importExportPreservesAccountTypesRoundTrip() {
+        // Clean state
+        categoryRepository.deleteAll();
+        expenseRepository.deleteAll();
+        savingsEntryRepository.deleteAll();
+        savingsAccountRepository.deleteAll();
+        savingsAccountTypeRepository.deleteAll();
+        userRepository.deleteAll();
+
+        // Create types
+        SavingsAccountType livret = new SavingsAccountType("Livret", "💧", 30);
+        savingsAccountTypeRepository.save(livret);
+        SavingsAccountType pea = new SavingsAccountType("PEA", "📈", 25);
+        savingsAccountTypeRepository.save(pea);
+
+        // Create accounts with types
+        SavingsAccount acc1 = new SavingsAccount();
+        acc1.setLabel("Livret A");
+        acc1.setMonthlyDeposit(BigDecimal.valueOf(200));
+        acc1.setAccountType(livret);
+        savingsAccountRepository.save(acc1);
+
+        SavingsAccount acc2 = new SavingsAccount();
+        acc2.setLabel("PEA Bourse");
+        acc2.setMonthlyDeposit(BigDecimal.valueOf(300));
+        acc2.setAccountType(pea);
+        savingsAccountRepository.save(acc2);
+
+        SavingsAccount acc3 = new SavingsAccount();
+        acc3.setLabel("Sans type");
+        acc3.setMonthlyDeposit(BigDecimal.valueOf(50));
+        acc3.setAccountType(null);
+        savingsAccountRepository.save(acc3);
+
+        ImportExportService svc = makeService();
+
+        // Export
+        ExportDto exported = svc.export();
+        assertEquals(2, exported.getSavingsAccountTypes().size());
+        assertEquals(3, exported.getSavingsAccounts().size());
+
+        // Import (round trip)
+        svc.importData(exported);
+
+        // Verify types restored
+        assertEquals(2, savingsAccountTypeRepository.count());
+        assertEquals(3, savingsAccountRepository.count());
+
+        List<SavingsAccount> accounts = savingsAccountRepository.findAll();
+
+        SavingsAccount livretAccount = accounts.stream()
+                .filter(a -> "Livret A".equals(a.getLabel())).findFirst().orElseThrow();
+        assertNotNull(livretAccount.getAccountType());
+        assertEquals("Livret", livretAccount.getAccountType().getName());
+        assertEquals("💧", livretAccount.getAccountType().getIcon());
+        assertEquals(30, livretAccount.getAccountType().getRecommendedPercentage());
+
+        SavingsAccount peaAccount = accounts.stream()
+                .filter(a -> "PEA Bourse".equals(a.getLabel())).findFirst().orElseThrow();
+        assertNotNull(peaAccount.getAccountType());
+        assertEquals("PEA", peaAccount.getAccountType().getName());
+
+        SavingsAccount untyped = accounts.stream()
+                .filter(a -> "Sans type".equals(a.getLabel())).findFirst().orElseThrow();
+        assertNull(untyped.getAccountType());
     }
 }

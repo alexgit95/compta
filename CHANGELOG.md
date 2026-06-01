@@ -5,6 +5,38 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.5.1] - 2026-06-01
+
+### Corrigé
+
+- **Épargne – Types de support par défaut manquants** : les 6 types de support pré-configurés n'étaient insérés qu'à la condition `count() == 0`, ce qui empêchait leur création si la base de données existait déjà avec des enregistrements.
+  - La logique d'initialisation vérifie désormais l'existence de chaque type **par son nom** (`findByName`) et n'insère que les types absents.
+  - Les types par défaut (Épargne de précaution, Livret, Fonds euros, Actions/PEA, Immobilier, Crypto) sont ainsi toujours présents au démarrage, quelle que soit l'état préalable de la base.
+
+- **Import/Export – Vérification de la conservation du type de support** : confirmation que le champ `accountType` de chaque `SavingsAccount` est bien sérialisé à l'export et correctement re-lié par nom à l'import.
+  - Les 3 tests existants (`exportReturnsAllEntities`, `importDataClearsAndReimports`, `importExportPreservesAccountTypesRoundTrip`) ont été exécutés et passent tous avec succès.
+
+## [0.5.0]
+
+### Ajouté
+
+- **Épargne – Typologie des comptes** : chaque compte épargne peut désormais être associé à un type de support (Livret, PEA, Assurance Vie, SCPI, Crypto, etc.).
+  - Nouvelle entité `SavingsAccountType` avec nom, icône emoji et pourcentage de répartition recommandé.
+  - 5 types de support pré-configurés au premier démarrage (Livret, Fonds euros, Actions/PEA, Immobilier, Crypto).
+  - Les types sont entièrement paramétrables par l'administrateur (ajout, suppression) directement dans l'onglet Épargne.
+  - Un badge avec l'icône du type s'affiche à côté du nom de chaque compte dans les cartes.
+
+- **Épargne – Diagramme de répartition** : ajout d'un graphique en camembert (doughnut) montrant la distribution de l'épargne par type de support.
+  - Tableau récapitulatif associé avec montants et pourcentages par type.
+
+- **Épargne – Conseil de répartition & notation** : section de conseils en bas de l'onglet épargne.
+  - Tableau comparatif allocation actuelle vs allocation recommandée (par type de support).
+  - Indicateur d'écart (montant en surplus ou en déficit par type).
+  - **Épargne de précaution** : jauge visuelle indiquant si l'épargne liquide couvre 3 à 6 mois de revenus, avec messages d'alerte ou de validation.
+
+- **Import/Export – Prise en charge des types de comptes** : les types de support (`savingsAccountTypes`) sont inclus dans l'export JSON et correctement restaurés lors de l'import, y compris le lien entre chaque compte et son type.
+  - Tests unitaires ajoutés : `importExportPreservesAccountTypesRoundTrip` vérifie un aller-retour complet export → import.
+
 ## [0.4.0]
 
 ### Sécurité

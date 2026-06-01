@@ -7,6 +7,11 @@ Application Spring Boot de gestion de budget personnel et d'épargne, avec inter
 - **Budget** : saisie du solde courant, projection quotidienne jusqu'en fin de mois avec graphique d'évolution
 - **Dépenses récurrentes** : gestion des dépenses mensuelles (catégorie, libellé, montant, jour du mois)
 - **Épargne** : suivi de plusieurs comptes épargne avec simulation de progression et graphiques
+  - Typage des comptes par type de support (Livret, PEA, Assurance Vie, SCPI, Crypto…) avec icônes
+  - Types paramétrables par l'administrateur avec pourcentage de répartition recommandé
+  - Diagramme en camembert de la répartition par type de support
+  - Conseil de répartition : comparaison allocation actuelle vs recommandée
+  - Indicateur d'épargne de précaution (objectif 3 à 6 mois de revenus en liquidités)
 - **Objectifs** : définition d'objectifs de solde cible ou de versement mensuel par compte épargne :
   - Histogramme comparant versements actuels vs objectifs de versement mensuel
   - Histogramme synthèse solde actuel vs solde objectif + courbes de tendance par compte

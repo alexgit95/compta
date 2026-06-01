@@ -1,7 +1,9 @@
 package com.example.demo.controller;
 
 import com.example.demo.model.SavingsAccount;
+import com.example.demo.model.SavingsAccountType;
 import com.example.demo.model.SavingsEntry;
+import com.example.demo.service.SavingsAccountTypeService;
 import com.example.demo.service.SavingsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,6 +23,7 @@ import java.util.Comparator;
 public class SavingsController {
 
     private final SavingsService savingsService;
+    private final SavingsAccountTypeService accountTypeService;
 
     @GetMapping
     public String savings(Model model) {
@@ -67,12 +70,74 @@ public class SavingsController {
         model.addAttribute("varDefaultFrom", LocalDate.now().minusYears(1).withDayOfMonth(1).toString());
         model.addAttribute("varDefaultTo", LocalDate.now().withDayOfMonth(1).toString());
         model.addAttribute("newAccount", new SavingsAccount());
+
+        // Account types for dropdown and pie chart
+        List<SavingsAccountType> accountTypes = accountTypeService.findAll();
+        model.addAttribute("accountTypes", accountTypes);
+
+        // Pie chart: distribution by type
+        Map<String, BigDecimal> distributionByType = new LinkedHashMap<>();
+        Map<String, String> iconByType = new LinkedHashMap<>();
+        Map<String, String> pctByType = new LinkedHashMap<>();
+        BigDecimal totalSavings = BigDecimal.ZERO;
+        for (SavingsAccount account : accounts) {
+            BigDecimal value = currentValues.getOrDefault(account.getId(), BigDecimal.ZERO);
+            String typeName = account.getAccountType() != null ? account.getAccountType().getName() : "Non classé";
+            String typeIcon = account.getAccountType() != null ? account.getAccountType().getIcon() : "❓";
+            distributionByType.merge(typeName, value, BigDecimal::add);
+            iconByType.putIfAbsent(typeName, typeIcon);
+            totalSavings = totalSavings.add(value);
+        }
+        // Compute percentage strings server-side to avoid complex SpEL in template
+        for (Map.Entry<String, BigDecimal> entry : distributionByType.entrySet()) {
+            if (totalSavings.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal pct = entry.getValue().multiply(BigDecimal.valueOf(100))
+                        .divide(totalSavings, 1, java.math.RoundingMode.HALF_UP);
+                pctByType.put(entry.getKey(), pct.toPlainString() + " %");
+            } else {
+                pctByType.put(entry.getKey(), "0 %");
+            }
+        }
+        model.addAttribute("distributionByType", distributionByType);
+        model.addAttribute("iconByType", iconByType);
+        model.addAttribute("pctByType", pctByType);
+        model.addAttribute("totalSavings", totalSavings);
+
+        // Scoring / advice: recommended distribution vs actual
+        List<Map<String, Object>> allocationAdvice = new ArrayList<>();
+        for (SavingsAccountType type : accountTypes) {
+            Map<String, Object> advice = new LinkedHashMap<>();
+            advice.put("type", type.getName());
+            advice.put("icon", type.getIcon());
+            advice.put("recommendedPct", type.getRecommendedPercentage());
+            BigDecimal actual = distributionByType.getOrDefault(type.getName(), BigDecimal.ZERO);
+            BigDecimal actualPct = totalSavings.compareTo(BigDecimal.ZERO) > 0
+                    ? actual.multiply(BigDecimal.valueOf(100)).divide(totalSavings, 1, java.math.RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+            advice.put("actualPct", actualPct);
+            advice.put("actualAmount", actual);
+            BigDecimal recommendedAmount = totalSavings.multiply(BigDecimal.valueOf(type.getRecommendedPercentage()))
+                    .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+            advice.put("recommendedAmount", recommendedAmount);
+            BigDecimal diff = actual.subtract(recommendedAmount);
+            advice.put("diff", diff);
+            allocationAdvice.add(advice);
+        }
+        model.addAttribute("allocationAdvice", allocationAdvice);
+
         return "savings";
     }
 
     @PostMapping("/accounts/save")
     @PreAuthorize("hasAnyRole('ADMIN','EDITOR')")
-    public String saveAccount(@ModelAttribute SavingsAccount account, RedirectAttributes ra) {
+    public String saveAccount(@ModelAttribute SavingsAccount account,
+                              @RequestParam(required = false) Long accountTypeId,
+                              RedirectAttributes ra) {
+        if (accountTypeId != null) {
+            account.setAccountType(accountTypeService.findById(accountTypeId));
+        } else {
+            account.setAccountType(null);
+        }
         savingsService.saveAccount(account);
         ra.addFlashAttribute("success", "Compte épargne enregistré.");
         return "redirect:/savings";
@@ -110,6 +175,7 @@ public class SavingsController {
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + id));
         model.addAttribute("account", account);
         model.addAttribute("entries", savingsService.findEntriesForAccount(account));
+        model.addAttribute("accountTypes", accountTypeService.findAll());
         return "savings-edit";
     }
 
