@@ -48,8 +48,7 @@
         </div>
 
         <button id="signin-passkey" type="button" class="btn btn-secondary"
-                style="width:100%; justify-content:center; gap:.5rem;"
-                onclick="this.disabled=true; this.textContent='⏳ En cours…'">
+                style="width:100%; justify-content:center; gap:.5rem;">
             🔑 Se connecter avec une clé d'accès (Passkey)
         </button>
         <div id="passkey-error" class="alert alert-error" style="display:none; margin-top:.75rem;">
@@ -68,21 +67,30 @@
         headers[csrfHeader] = csrf;
         const contextPath = /*[[${contextPath}]]*/ '';
         const btn = document.getElementById('signin-passkey');
+        const errDiv = document.getElementById('passkey-error');
 
-        if (!window.setupLogin) {
+        // Vérification du support WebAuthn dans le navigateur
+        if (!window.PublicKeyCredential || !window.webAuthnAuthenticate) {
             btn.disabled = true;
             btn.title = 'WebAuthn non supporté dans ce navigateur';
             return;
         }
-        window.setupLogin(headers, contextPath, btn);
-        // Restore button text on any click failure
-        btn.addEventListener('click', function () {
-            setTimeout(function () {
-                if (btn.disabled) {
-                    btn.disabled = false;
-                    btn.textContent = '🔑 Se connecter avec une clé d\'accès (Passkey)';
-                }
-            }, 8000);
+
+        btn.addEventListener('click', async function () {
+            btn.disabled = true;
+            btn.textContent = '⏳ En cours…';
+            if (errDiv) errDiv.style.display = 'none';
+            try {
+                // authenticate() récupère un nouveau challenge à chaque tentative
+                const redirectUrl = await window.webAuthnAuthenticate(headers, contextPath, false);
+                window.location.href = redirectUrl;
+            } catch (err) {
+                console.error('WebAuthn authentication error:', err);
+                // Pas de rechargement de page : on conserve la session et le token CSRF
+                btn.disabled = false;
+                btn.textContent = '🔑 Se connecter avec une clé d\'accès (Passkey)';
+                if (errDiv) errDiv.style.display = 'block';
+            }
         });
     })();
 </script>

@@ -290,4 +290,7 @@
   // lib/index.js
   window.setupLogin = setupLogin;
   window.setupRegistration = setupRegistration;
+  // Expose raw authenticate() so custom login pages can handle errors inline
+  // (without full page reload) to avoid session/CSRF state disruption on retry.
+  window.webAuthnAuthenticate = webauthn_core_default.authenticate;
 })();

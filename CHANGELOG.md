@@ -5,6 +5,15 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.7.5] - 2026-06-01
+
+### Corrigé
+
+- **WebAuthn / Passkey – bug 3 tentatives** : la cinématique (1ère tentative → erreur identifiants, 2ème → page blanche status 999, 3ème → succès) était causée par la gestion d'erreur JS qui effectuait un rechargement complet de page (`window.location.href = '/login?error'`) à chaque échec. Ce rechargement invalide la session et le token CSRF (Spring Security 7 + `XorCsrfTokenRequestAttributeHandler`), rendant les tentatives suivantes instables.
+  - `spring-security-webauthn.js` : exposition de `window.webAuthnAuthenticate` (la fonction `authenticate()` interne) pour permettre une gestion fine côté login.
+  - `login.html` : remplacement de `window.setupLogin()` par un gestionnaire d'événement personnalisé qui affiche une erreur *inline* en cas d'échec (sans rechargement de page), préserve le token CSRF et la session, et réactive immédiatement le bouton pour permettre une nouvelle tentative.
+- **Journalisation WebAuthn/CSRF** : logs DEBUG ajoutés en profil local (`application-local.properties`) pour faciliter le diagnostic des erreurs WebAuthn.
+
 ## [0.7.4] - 2026-06-01
 
 ### Modifié
