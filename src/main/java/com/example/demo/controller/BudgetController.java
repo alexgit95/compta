@@ -3,6 +3,7 @@ package com.example.demo.controller;
 import com.example.demo.model.Category;
 import com.example.demo.model.RecurringExpense;
 import com.example.demo.repository.CategoryRepository;
+import com.example.demo.service.AppSettingService;
 import com.example.demo.service.BudgetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,8 +16,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
 @Controller
 @RequestMapping("/budget")
@@ -25,6 +25,7 @@ public class BudgetController {
 
     private final BudgetService budgetService;
     private final CategoryRepository categoryRepository;
+    private final AppSettingService appSettingService;
 
     @GetMapping
     public String budget(@RequestParam(required = false) BigDecimal balance, Model model) {
@@ -57,6 +58,48 @@ public class BudgetController {
         model.addAttribute("endOfMonth", today.withDayOfMonth(today.lengthOfMonth()));
         model.addAttribute("today", today);
         model.addAttribute("expenses", budgetService.findAllExpenses());
+
+        // --- Sankey data ---
+        BigDecimal salary = appSettingService.getNumeric(AppSettingService.KEY_BUDGET_SALARY, BigDecimal.ZERO);
+        BigDecimal courses = appSettingService.getNumeric(AppSettingService.KEY_BUDGET_COURSES, BigDecimal.ZERO);
+
+        // Build Sankey links: [from, to, value]
+        // Level 1: Salaires → Category
+        // Level 2: Category → RecurringExpense
+        // Special nodes (courses, remaining budget) are grouped under "Divers"
+        List<List<Object>> sankeyLinks = new ArrayList<>();
+        Map<String, BigDecimal> categoryTotals = new LinkedHashMap<>();
+        final String otherCategory = "📦 Divers";
+
+        List<RecurringExpense> allExpenses = budgetService.findAllExpenses();
+        for (RecurringExpense exp : allExpenses) {
+            String catName = exp.getCategory() != null
+                    ? (exp.getCategory().getIcon() != null ? exp.getCategory().getIcon() + " " : "") + exp.getCategory().getName()
+                    : "Sans catégorie";
+            categoryTotals.merge(catName, exp.getAmount(), BigDecimal::add);
+        }
+
+        // Salary → each category
+        for (Map.Entry<String, BigDecimal> entry : categoryTotals.entrySet()) {
+            sankeyLinks.add(Arrays.asList("💰 Salaires", entry.getKey(), entry.getValue()));
+        }
+        // Salary → Divers → Courses (special)
+        if (courses.compareTo(BigDecimal.ZERO) > 0) {
+            sankeyLinks.add(Arrays.asList("💰 Salaires", otherCategory, courses));
+            sankeyLinks.add(Arrays.asList(otherCategory, "🛒 Courses", courses));
+        }
+
+        // Category → each expense
+        for (RecurringExpense exp : allExpenses) {
+            String catName = exp.getCategory() != null
+                    ? (exp.getCategory().getIcon() != null ? exp.getCategory().getIcon() + " " : "") + exp.getCategory().getName()
+                    : "Sans catégorie";
+            sankeyLinks.add(Arrays.asList(catName, exp.getLabel(), exp.getAmount()));
+        }
+
+        model.addAttribute("sankeyLinks", sankeyLinks);
+        model.addAttribute("sankeySalary", salary);
+        model.addAttribute("sankeyCourses", courses);
         return "budget";
     }
 

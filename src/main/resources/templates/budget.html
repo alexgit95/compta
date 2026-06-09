@@ -108,10 +108,33 @@
             </table>
         </div>
     </div>
+
+    <!-- Sankey: flux des dépenses récurrentes -->
+    <div class="card" th:if="${!#lists.isEmpty(sankeyLinks)}">
+        <div class="flex flex-wrap" style="justify-content:space-between; align-items:center; gap:.75rem; margin-bottom:.75rem;">
+            <div class="card-title" style="margin:0;">🔀 Flux des dépenses récurrentes</div>
+            <div class="flex" style="gap:.5rem; align-items:center; flex-wrap:wrap;">
+                <button id="btn-sankey-cat"  class="btn btn-primary btn-sm"  onclick="setSankeyMode('categories')">Par catégorie</button>
+                <button id="btn-sankey-det"  class="btn btn-outline btn-sm"  onclick="setSankeyMode('detail')">Détail complet</button>
+                <span class="text-muted" style="font-size:.83rem;"
+                      th:if="${sankeySalary != null and sankeySalary.compareTo(0) > 0}"
+                      th:text="${'Source : ' + #numbers.formatDecimal(sankeySalary, 1, 2) + ' € / mois'}"></span>
+                <span class="text-muted" style="font-size:.83rem;"
+                      th:unless="${sankeySalary != null and sankeySalary.compareTo(0) > 0}">
+                    ⚙️ <a th:href="@{/admin/settings}">Configurer le salaire</a>
+                </span>
+            </div>
+        </div>
+        <div id="budget-sankey-chart" style="width:100%;"></div>
+    </div>
+    <div class="card" th:if="${#lists.isEmpty(sankeyLinks)}" style="text-align:center; color:var(--text-muted); font-size:.92rem;">
+        Aucune dépense récurrente — le diagramme Sankey s'affichera une fois des dépenses configurées.
+    </div>
 </div>
 </th:block>
 
 <th:block th:fragment="scripts">
+<script src="https://www.gstatic.com/charts/loader.js"></script>
 <script th:inline="javascript">
 /*<![CDATA[*/
 const projectionData = /*[[${projection}]]*/ {};
@@ -159,6 +182,175 @@ const makeBudgetConfig = (enableZoom) => ({
 });
 new Chart(document.getElementById('budgetChart'), makeBudgetConfig(false));
 fsChartBuilders['budgetChart'] = canvas => new Chart(canvas, makeBudgetConfig(true));
+
+// --- Sankey (Google Charts) ---
+const sankeyRawLinks = /*[[${sankeyLinks}]]*/ [];
+const sankeySalary   = /*[[${sankeySalary}]]*/ 0;
+
+if (sankeyRawLinks.length > 0 && document.getElementById('budget-sankey-chart')) {
+    // Separate level-1 links (Salaires → Catégorie) from level-2 (Catégorie → Dépense)
+    const SOURCE = '💰 Salaires';
+    const OTHER = '📦 Divers';
+    const level1 = sankeyRawLinks.filter(r => String(r[0]) === SOURCE);
+
+    // Compute total allocated and remaining salary
+    function totalFlow(links) { return links.reduce((s, r) => s + Number(r[2]), 0); }
+
+    function mergeLinks(links) {
+        const merged = new Map();
+        links.forEach(function(link) {
+            const from = String(link[0]);
+            const to = String(link[1]);
+            const amount = Number(link[2]);
+            const key = from + '>>' + to;
+            merged.set(key, (merged.get(key) || 0) + amount);
+        });
+        return Array.from(merged.entries()).map(function(entry) {
+            const sep = entry[0].indexOf('>>');
+            return [entry[0].substring(0, sep), entry[0].substring(sep + 2), entry[1]];
+        });
+    }
+
+    function sortLinksForDisplay(links) {
+        return links.slice().sort(function(a, b) {
+            const aFrom = String(a[0]);
+            const aTo = String(a[1]);
+            const bFrom = String(b[0]);
+            const bTo = String(b[1]);
+
+            const aIsOther = aFrom === OTHER || aTo === OTHER;
+            const bIsOther = bFrom === OTHER || bTo === OTHER;
+            if (aIsOther !== bIsOther) {
+                return aIsOther ? 1 : -1;
+            }
+            return 0;
+        });
+    }
+
+    function styleSpecialNodes() {
+        const container = document.getElementById('budget-sankey-chart');
+        const svg = container ? container.querySelector('svg') : null;
+        if (!svg) {
+            return;
+        }
+
+        const rects = Array.from(svg.querySelectorAll('rect'));
+        const texts = Array.from(svg.querySelectorAll('text'));
+        const specialNodeLabels = new Set([OTHER, '🛒 Courses', '💾 Reste disponible']);
+        const specialTextColor = '#425466';
+        const specialRectColor = '#cbd5e1';
+
+        texts.forEach(function(textEl) {
+            const label = (textEl.textContent || '').trim();
+            if (!specialNodeLabels.has(label)) {
+                return;
+            }
+
+            textEl.setAttribute('fill', specialTextColor);
+
+            const box = textEl.getBBox();
+            const matchingRect = rects.find(function(rectEl) {
+                const x = Number(rectEl.getAttribute('x') || 0);
+                const y = Number(rectEl.getAttribute('y') || 0);
+                const width = Number(rectEl.getAttribute('width') || 0);
+                const height = Number(rectEl.getAttribute('height') || 0);
+                const withinX = box.x >= x - 6 && box.x <= x + width + 80;
+                const withinY = box.y + box.height >= y - 6 && box.y <= y + height + 6;
+                return withinX && withinY;
+            });
+
+            if (matchingRect) {
+                matchingRect.setAttribute('fill', specialRectColor);
+                matchingRect.setAttribute('stroke', '#94a3b8');
+            }
+        });
+    }
+
+    let sankeyMode = 'categories';
+    let sankeyChart = null;
+
+    function buildSankeyData(mode) {
+        var dt = new google.visualization.DataTable();
+        dt.addColumn('string', 'De');
+        dt.addColumn('string', 'Vers');
+        dt.addColumn('number', 'Montant (€)');
+
+        var links = mode === 'categories' ? level1.slice() : sankeyRawLinks.slice();
+
+        // Add "Reste disponible" under the "Autre" category when salary is configured
+        if (sankeySalary > 0) {
+            var allocated = totalFlow(level1);
+            var remaining = sankeySalary - allocated;
+            if (remaining > 0.01) {
+                links.push([SOURCE, OTHER, remaining]);
+                if (mode === 'detail') {
+                    links.push([OTHER, '💾 Reste disponible', remaining]);
+                }
+            }
+        }
+
+        sortLinksForDisplay(mergeLinks(links)).forEach(function(r) {
+            dt.addRow([String(r[0]), String(r[1]), Number(r[2])]);
+        });
+        return dt;
+    }
+
+    function sankeyHeight(mode) {
+        if (mode === 'categories') {
+            return Math.max(300, level1.length * 55 + 80);
+        } else {
+            // count unique leaf nodes (right-most: target not appearing as source)
+            var sources = new Set(sankeyRawLinks.map(r => String(r[0])));
+            var leaves = sankeyRawLinks.filter(r => !sources.has(String(r[1]))).length;
+            return Math.max(400, leaves * 30 + 80);
+        }
+    }
+
+    var colors = ['#4f6ef7','#27ae60','#e67e22','#e74c3c','#9b59b6','#1abc9c',
+                  '#f39c12','#3498db','#d35400','#2ecc71','#8e44ad','#16a085','#95a5a6'];
+
+    function drawSankey(mode) {
+        var h = sankeyHeight(mode);
+        document.getElementById('budget-sankey-chart').style.height = h + 'px';
+        var options = {
+            width: '100%',
+            height: h,
+            sankey: {
+                node: {
+                    label: { fontSize: 13, bold: false },
+                    width: 20,
+                    nodePadding: mode === 'categories' ? 22 : 12,
+                    colors: colors
+                },
+                link: { colorMode: 'gradient' },
+                iterations: 64
+            },
+            tooltip: {
+                isHtml: true,
+                trigger: 'focus'
+            }
+        };
+        var data = buildSankeyData(mode);
+        if (!sankeyChart) {
+            sankeyChart = new google.visualization.Sankey(document.getElementById('budget-sankey-chart'));
+        }
+        sankeyChart.draw(data, options);
+        styleSpecialNodes();
+    }
+
+    window.setSankeyMode = function(mode) {
+        sankeyMode = mode;
+        document.getElementById('btn-sankey-cat').className = mode === 'categories' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+        document.getElementById('btn-sankey-det').className = mode === 'detail'     ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+        drawSankey(mode);
+    };
+
+    google.charts.load('current', { packages: ['sankey'] });
+    google.charts.setOnLoadCallback(function() {
+        drawSankey(sankeyMode);
+        window.addEventListener('resize', function() { drawSankey(sankeyMode); });
+    });
+}
 /*]]>*/
 </script>
 </th:block>

@@ -51,11 +51,14 @@ class ImportExportServiceTest {
     private PropertyRepository propertyRepository;
 
     @Autowired
+    private AppSettingRepository appSettingRepository;
+
+    @Autowired
     private EntityManager entityManager;
 
     private ImportExportService makeService() {
         return new ImportExportService(categoryRepository, expenseRepository, savingsAccountTypeRepository,
-                savingsAccountRepository, savingsEntryRepository, goalRepository, creditRepository, propertyRepository, userRepository, entityManager);
+                savingsAccountRepository, savingsEntryRepository, goalRepository, creditRepository, propertyRepository, userRepository, appSettingRepository, entityManager);
     }
 
     @Test

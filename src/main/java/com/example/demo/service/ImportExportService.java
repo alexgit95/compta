@@ -23,6 +23,7 @@ public class ImportExportService {
     private final CreditRepository creditRepository;
     private final PropertyRepository propertyRepository;
     private final UserRepository userRepository;
+    private final AppSettingRepository appSettingRepository;
     private final EntityManager entityManager;
 
     public ExportDto export() {
@@ -36,6 +37,7 @@ public class ImportExportService {
         dto.setCredits(creditRepository.findAll());
         dto.setProperties(propertyRepository.findAll());
         dto.setUsers(userRepository.findAll());
+        dto.setAppSettings(appSettingRepository.findAll());
         return dto;
     }
 
@@ -158,6 +160,13 @@ public class ImportExportService {
                 }
             }
             creditRepository.saveAll(dto.getCredits());
+        }
+
+        // Import app settings (key-value, no ID to nullify since key is the PK)
+        if (dto.getAppSettings() != null) {
+            appSettingRepository.deleteAllInBatch();
+            entityManager.flush();
+            appSettingRepository.saveAll(dto.getAppSettings());
         }
     }
 }

@@ -125,6 +125,20 @@ public class SavingsController {
         }
         model.addAttribute("allocationAdvice", allocationAdvice);
 
+        // --- Sankey: versements mensuels par compte ---
+        // Nodes: "💰 Versements mensuels" → account label
+        List<List<Object>> savingsSankeyLinks = new ArrayList<>();
+        for (SavingsAccount account : accounts) {
+            if (account.getMonthlyDeposit().compareTo(BigDecimal.ZERO) > 0) {
+                String icon = account.getAccountType() != null ? account.getAccountType().getIcon() + " " : "";
+                savingsSankeyLinks.add(java.util.Arrays.asList(
+                        "💰 Versements mensuels",
+                        icon + account.getLabel(),
+                        account.getMonthlyDeposit()));
+            }
+        }
+        model.addAttribute("savingsSankeyLinks", savingsSankeyLinks);
+
         return "savings";
     }
 

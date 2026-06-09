@@ -337,10 +337,17 @@
 
     </div>
 
+    <!-- Sankey: versements mensuels par compte épargne -->
+    <div class="card" th:if="${!#lists.isEmpty(savingsSankeyLinks)}">
+        <div class="card-title" style="margin-bottom:.75rem;">🔀 Répartition des versements mensuels</div>
+        <div id="savings-sankey-chart" style="width:100%; min-height:320px;"></div>
+    </div>
+
 </div>
 </th:block>
 
 <th:block th:fragment="scripts">
+<script src="https://www.gstatic.com/charts/loader.js"></script>
 <script th:inline="javascript">
 /*<![CDATA[*/
 const allChartData = /*[[${chartData}]]*/ {};
@@ -789,6 +796,40 @@ function renderPieChart() {
 
 if (accounts.length > 0) {
     renderPieChart();
+}
+
+// --- Sankey (Google Charts): versements mensuels ---
+const savingsSankeyLinks = /*[[${savingsSankeyLinks}]]*/ [];
+if (savingsSankeyLinks.length > 0 && document.getElementById('savings-sankey-chart')) {
+    google.charts.load('current', { packages: ['sankey'] });
+    google.charts.setOnLoadCallback(function() {
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'De');
+        data.addColumn('string', 'Vers');
+        data.addColumn('number', 'Versement');
+        savingsSankeyLinks.forEach(function(row) {
+            data.addRow([String(row[0]), String(row[1]), Number(row[2])]);
+        });
+        var colors = ['#27ae60','#4f6ef7','#e67e22','#9b59b6','#1abc9c',
+                      '#f39c12','#3498db','#e74c3c','#8e44ad','#16a085'];
+        var options = {
+            width: '100%',
+            height: 350,
+            sankey: {
+                node: {
+                    label: { fontSize: 13, bold: false },
+                    width: 20,
+                    nodePadding: 14,
+                    colors: colors
+                },
+                link: { colorMode: 'gradient' },
+                iterations: 32
+            }
+        };
+        var chart = new google.visualization.Sankey(document.getElementById('savings-sankey-chart'));
+        chart.draw(data, options);
+        window.addEventListener('resize', function() { chart.draw(data, options); });
+    });
 }
 /*]]>*/
 </script>

@@ -5,6 +5,17 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.8.0] - 2026-06-09
+
+### Ajouté
+
+- **Diagramme de Sankey – Budget** : un diagramme de flux (Sankey) est affiché en bas de la page Budget. Il représente le flux des dépenses récurrentes depuis la source "Salaires" vers chaque catégorie (niveau 2) puis vers chaque dépense individuelle (niveau 3). Une catégorie spéciale "🛒 Courses" est incluse avec un montant configurable.
+- **Diagramme de Sankey – Épargne** : un diagramme de flux est affiché en bas de la page Épargne, montrant la répartition des versements mensuels entre chaque compte épargne.
+- **Paramètres applicatifs (`AppSetting`)** : nouvelle entité JPA `app_setting` (clé/valeur) permettant de stocker des paramètres configurables (salaire mensuel total, budget courses).
+- **Page d'administration "Paramètres"** (`/admin/settings`) : formulaire permettant de configurer le salaire mensuel total et le budget courses utilisés dans le diagramme Sankey du budget.
+- **Import/Export** : les `AppSetting` sont inclus dans l'export JSON et restaurés à l'import.
+- Navigation Admin : lien "⚙️ Paramètres" ajouté dans la sous-navigation de toutes les pages d'administration.
+
 ## [0.7.5] - 2026-06-01
 
 ### Corrigé
