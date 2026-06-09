@@ -17,7 +17,7 @@ import java.math.BigDecimal;
 public class AppSetting {
 
     @Id
-    @Column(nullable = false, unique = true, length = 100)
+    @Column(name = "setting_key", nullable = false, unique = true, length = 100)
     private String key;
 
     /** Human-readable label shown in the admin UI. */
