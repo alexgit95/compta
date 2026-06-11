@@ -17,4 +17,5 @@ public class ExportDto {
     private List<Property> properties;
     private List<User> users;
     private List<AppSetting> appSettings;
+    private List<ShoppingSettings> shoppingSettings;
 }

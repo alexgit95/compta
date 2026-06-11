@@ -24,6 +24,7 @@ public class ImportExportService {
     private final PropertyRepository propertyRepository;
     private final UserRepository userRepository;
     private final AppSettingRepository appSettingRepository;
+    private final ShoppingSettingsRepository shoppingSettingsRepository;
     private final EntityManager entityManager;
 
     public ExportDto export() {
@@ -38,6 +39,7 @@ public class ImportExportService {
         dto.setProperties(propertyRepository.findAll());
         dto.setUsers(userRepository.findAll());
         dto.setAppSettings(appSettingRepository.findAll());
+        dto.setShoppingSettings(shoppingSettingsRepository.findAll());
         return dto;
     }
 
@@ -54,6 +56,7 @@ public class ImportExportService {
         propertyRepository.deleteAllInBatch();
         categoryRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
+        shoppingSettingsRepository.deleteAllInBatch();
         // Flush deletes to DB before inserting to avoid UNIQUE constraint violations
         entityManager.flush();
         entityManager.clear();
@@ -167,6 +170,14 @@ public class ImportExportService {
             appSettingRepository.deleteAllInBatch();
             entityManager.flush();
             appSettingRepository.saveAll(dto.getAppSettings());
+        }
+
+        // Import shopping settings
+        if (dto.getShoppingSettings() != null) {
+            for (ShoppingSettings s : dto.getShoppingSettings()) {
+                s.setId(null);
+            }
+            shoppingSettingsRepository.saveAll(dto.getShoppingSettings());
         }
     }
 }

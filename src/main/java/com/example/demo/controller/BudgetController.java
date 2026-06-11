@@ -5,6 +5,7 @@ import com.example.demo.model.RecurringExpense;
 import com.example.demo.repository.CategoryRepository;
 import com.example.demo.service.AppSettingService;
 import com.example.demo.service.BudgetService;
+import com.example.demo.service.ShoppingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,6 +27,7 @@ public class BudgetController {
     private final BudgetService budgetService;
     private final CategoryRepository categoryRepository;
     private final AppSettingService appSettingService;
+    private final ShoppingService shoppingService;
 
     @GetMapping
     public String budget(@RequestParam(required = false) BigDecimal balance, Model model) {
@@ -44,8 +46,34 @@ public class BudgetController {
         BigDecimal endOfMonthBalance = projection.values().stream()
                 .reduce(balance, (a, b) -> b);
 
-        // Total expenses = difference between end and start
-        BigDecimal totalMonthExpenses = balance.subtract(endOfMonthBalance).abs();
+        // Total recurring expenses = difference between end and start
+        BigDecimal totalRecurringExpenses = balance.subtract(endOfMonthBalance).abs();
+
+        // --- Shopping (courses) budget ---
+        java.util.List<com.example.demo.model.ShoppingSettings> shoppingList = shoppingService.findAll();
+        BigDecimal remainingShoppingBudget = BigDecimal.ZERO;
+        int remainingShoppingTrips = 0;
+        LocalDate nextShoppingDate = null;
+        
+        if (!shoppingList.isEmpty()) {
+            com.example.demo.model.ShoppingSettings shopping = shoppingList.get(0);
+            remainingShoppingBudget = shoppingService.getRemainingShoppingBudgetThisMonth(shopping, today);
+            remainingShoppingTrips = shoppingService.getRemainingShoppingTripsThisMonth(shopping, today);
+            nextShoppingDate = shoppingService.getNextShoppingDate(shopping);
+            
+            model.addAttribute("hasShoppingConfig", true);
+            model.addAttribute("shoppingAmount", shopping.getAmount());
+            model.addAttribute("remainingShoppingBudget", remainingShoppingBudget);
+            model.addAttribute("remainingShoppingTrips", remainingShoppingTrips);
+            model.addAttribute("nextShoppingDate", nextShoppingDate);
+        } else {
+            model.addAttribute("hasShoppingConfig", false);
+        }
+        
+        // Total expenses = recurring + shopping
+        BigDecimal totalMonthExpenses = totalRecurringExpenses.add(remainingShoppingBudget);
+        // Recalculate end-of-month balance with shopping included
+        endOfMonthBalance = balance.subtract(totalMonthExpenses);
 
         // Convert LocalDate keys to ISO strings for safe JS inline serialization
         Map<String, BigDecimal> projectionStr = new LinkedHashMap<>();
@@ -55,6 +83,7 @@ public class BudgetController {
         model.addAttribute("currentBalance", balance);
         model.addAttribute("endOfMonthBalance", endOfMonthBalance);
         model.addAttribute("totalMonthExpenses", totalMonthExpenses);
+        model.addAttribute("totalRecurringExpenses", totalRecurringExpenses);
         model.addAttribute("endOfMonth", today.withDayOfMonth(today.lengthOfMonth()));
         model.addAttribute("today", today);
         model.addAttribute("expenses", budgetService.findAllExpenses());

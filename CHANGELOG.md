@@ -5,6 +5,20 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [Unreleased]
+
+### Ajouté
+
+- **Gestion des courses (Budget)** : nouvelle fonctionnalité pour gérer et prévoir les dépenses de courses.
+  - Nouvelle entité `ShoppingSettings` : configuration du montant des courses et de leur fréquence (en jours).
+  - Page d'administration `/admin/shopping` : interface pour configurer le montant et la fréquence des courses, avec affichage de la prochaine date prévue et des courses restantes ce mois.
+  - Service `ShoppingService` : calculs des courses restantes pour le mois courant et du budget restant à dépenser.
+  - Affichage dans la page Budget : deux cartes synthétiques montrant le montant restant à dépenser en courses ce mois et la prochaine date de courses prévue.
+  - Intégration à l'import/export JSON : les paramètres de courses sont sauvegardés et restaurés lors de l'export/import.
+  - Initialisation par défaut au démarrage : si aucune configuration n'existe, une configuration par défaut est créée (80€, hebdomadaire, date actuelle).
+  - Navigation Admin : lien "🛒 Courses" ajouté dans la sous-navigation de toutes les pages d'administration.
+  - **Décomposition des dépenses** : la carte "Dépenses restantes ce mois" affiche le total et une ventilation détaillée : montant des dépenses récurrentes et montant des courses (si configurées). Cette décomposition aide à visualiser le poids des courses dans le budget total du mois.
+
 ## [0.8.1] - 2026-06-11
 
 ### Modifié

@@ -31,6 +31,7 @@ public class AdminController {
     private final SavingsAccountTypeService savingsAccountTypeService;
     private final PropertyService propertyService;
     private final AppSettingService appSettingService;
+    private final ShoppingService shoppingService;
     private final ObjectMapper objectMapper;
 
     // --- Categories ---
@@ -209,5 +210,33 @@ public class AdminController {
                 "Budget courses mensuelles (€)", courses);
         ra.addFlashAttribute("success", "Paramètres enregistrés.");
         return "redirect:/admin/settings";
+    }
+
+    // --- Shopping (Courses) ---
+
+    @GetMapping("/shopping")
+    public String shopping(Model model) {
+        java.util.List<ShoppingSettings> settings = shoppingService.findAll();
+        ShoppingSettings setting = settings.isEmpty() ? new ShoppingSettings() : settings.get(0);
+        
+        model.addAttribute("shoppingSettings", setting);
+        
+        if (setting.getId() != null) {
+            model.addAttribute("nextShoppingDate", 
+                shoppingService.getNextShoppingDate(setting));
+            model.addAttribute("remainingTrips", 
+                shoppingService.getRemainingShoppingTripsThisMonth(setting, java.time.LocalDate.now()));
+            model.addAttribute("remainingBudget", 
+                shoppingService.getRemainingShoppingBudgetThisMonth(setting, java.time.LocalDate.now()));
+        }
+        
+        return "admin/shopping";
+    }
+
+    @PostMapping("/shopping/save")
+    public String saveShopping(@ModelAttribute ShoppingSettings settings, RedirectAttributes ra) {
+        shoppingService.save(settings);
+        ra.addFlashAttribute("success", "Configuration des courses enregistrée.");
+        return "redirect:/admin/shopping";
     }
 }

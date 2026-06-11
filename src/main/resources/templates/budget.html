@@ -39,6 +39,10 @@
             <div class="summary-amount amount-negative"
                  th:text="${#numbers.formatDecimal(totalMonthExpenses, 1, 2) + ' €'}">
             </div>
+            <div style="margin-top:0.75rem; font-size:0.85rem; color:#666;">
+                <div>💰 Récurrentes: <span th:text="${#numbers.formatDecimal(totalRecurringExpenses, 1, 2) + ' €'}"></span></div>
+                <div th:if="${hasShoppingConfig}">🛒 Courses: <span th:text="${#numbers.formatDecimal(remainingShoppingBudget, 1, 2) + ' €'}"></span></div>
+            </div>
         </div>
         <div class="card">
             <div class="card-title">Solde fin de mois (estimé)</div>
@@ -116,8 +120,31 @@
         </div>
     </div>
 
+    <!-- Shopping (Courses) summary -->
+    <div class="grid-2" th:if="${hasShoppingConfig}">
+        <div class="card">
+            <div class="card-title">🛒 Courses restantes ce mois</div>
+            <div class="summary-amount amount-warning"
+                 th:text="${#numbers.formatDecimal(remainingShoppingBudget, 1, 2) + ' €'}">
+            </div>
+            <div class="text-muted" th:text="|${remainingShoppingTrips} course(s) restante(s)|" style="margin-top:.5rem;"></div>
+        </div>
+        <div class="card">
+            <div class="card-title">📅 Prochaine course prévue</div>
+            <div style="font-size:1.2rem; font-weight:600; color:#333;">
+                <span th:text="${#temporals.format(nextShoppingDate, 'dd/MM/yyyy')}">01/01/2024</span>
+            </div>
+            <div class="text-muted" style="margin-top:.5rem;">
+                Montant unitaire: <span th:text="${#numbers.formatDecimal(shoppingAmount, 1, 2) + ' €'}">0.00 €</span>
+            </div>
+        </div>
+    </div>
+    <div class="card" th:unless="${hasShoppingConfig}" style="text-align:center; color:var(--text-muted); font-size:.92rem; margin-bottom:1.5rem;">
+        🛒 Aucune configuration de courses — <a th:href="@{/admin/shopping}">Configurer maintenant</a>
+    </div>
+
     <!-- Sankey: flux des dépenses récurrentes -->
-    <div class="card" th:if="${!#lists.isEmpty(sankeyLinks)}">
+    <div class="card" th:if="${!#lists.isEmpty(sankeyLinks)}">>
         <div class="flex flex-wrap" style="justify-content:space-between; align-items:center; gap:.75rem; margin-bottom:.75rem;">
             <div class="card-title" style="margin:0;">🔀 Flux des dépenses récurrentes</div>
             <div class="flex" style="gap:.5rem; align-items:center; flex-wrap:wrap;">
