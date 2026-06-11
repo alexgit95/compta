@@ -9,6 +9,10 @@ et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/)
 
 ### Modifié
 
+- **Crédits – Tableau récapitulatif** : le "restant dû" est désormais calculé dynamiquement à partir du montant restant saisi et de sa date de référence.
+  - Calcul appliqué : `montant restant saisi - (mensualité × nombre de mois écoulés depuis la date de saisie)`.
+  - Le total "restant dû" et le pourcentage remboursé utilisent aussi cette valeur recalculée.
+
 - **Budget – Dépenses récurrentes du mois** : mise en évidence visuelle des montants en fonction de la date du mois.
   - Les dépenses avec une date passée (jour < aujourd'hui) apparaissent en grisé barré avec le badge "DÉJÀ COMPTÉE" pour indiquer qu'elles sont déjà prises en compte.
   - Les dépenses à venir restent en rouge pour signaler qu'elles sont encore à déduire dans la projection du mois.

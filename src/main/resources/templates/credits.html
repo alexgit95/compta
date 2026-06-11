@@ -80,7 +80,7 @@
                         <td th:text="${#numbers.formatDecimal(credit.totalAmount, 1, 'COMMA', 2, 'POINT')} + ' €'"></td>
                         <td th:text="${#numbers.formatDecimal(credit.rate, 1, 'COMMA', 2, 'POINT')} + ' %'"></td>
                         <td th:text="${#numbers.formatDecimal(credit.monthlyPayment, 1, 'COMMA', 2, 'POINT')} + ' €'"></td>
-                        <td th:text="${#numbers.formatDecimal(credit.remainingAmount, 1, 'COMMA', 2, 'POINT')} + ' €'"></td>
+                        <td th:text="${#numbers.formatDecimal(currentRemainingAmounts[credit.id], 1, 'COMMA', 2, 'POINT')} + ' €'"></td>
                         <td>
                             <div style="display:flex; align-items:center; gap:.5rem;">
                                 <div style="flex:1; height:8px; background:#e5e7eb; border-radius:4px; overflow:hidden;">

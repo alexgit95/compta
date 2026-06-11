@@ -41,12 +41,41 @@ public class CreditService {
      * Calculates the repayment percentage based on remaining amount vs total amount.
      */
     public BigDecimal getRepaymentPercentage(Credit credit) {
+        return getRepaymentPercentage(credit, credit.getRemainingAmount());
+    }
+
+    /**
+     * Calculates the repayment percentage based on a provided remaining amount.
+     */
+    public BigDecimal getRepaymentPercentage(Credit credit, BigDecimal remainingAmount) {
         if (credit.getTotalAmount().compareTo(BigDecimal.ZERO) == 0) {
             return BigDecimal.valueOf(100);
         }
-        BigDecimal paid = credit.getTotalAmount().subtract(credit.getRemainingAmount());
+        BigDecimal paid = credit.getTotalAmount().subtract(remainingAmount);
         return paid.multiply(BigDecimal.valueOf(100))
                 .divide(credit.getTotalAmount(), 1, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Computes the current remaining amount by subtracting elapsed monthly payments
+     * since the reference date of the stored remaining amount.
+     */
+    public BigDecimal getCurrentRemainingAmount(Credit credit) {
+        return getCurrentRemainingAmount(credit, LocalDate.now());
+    }
+
+    public BigDecimal getCurrentRemainingAmount(Credit credit, LocalDate asOfDate) {
+        LocalDate refMonth = credit.getRemainingAmountDate().withDayOfMonth(1);
+        LocalDate asOfMonth = asOfDate.withDayOfMonth(1);
+
+        long elapsedMonths = asOfMonth.isAfter(refMonth)
+                ? ChronoUnit.MONTHS.between(refMonth, asOfMonth)
+                : 0;
+
+        BigDecimal paidSinceReference = credit.getMonthlyPayment().multiply(BigDecimal.valueOf(elapsedMonths));
+        BigDecimal currentRemaining = credit.getRemainingAmount().subtract(paidSinceReference);
+
+        return currentRemaining.max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
     }
 
     /**
