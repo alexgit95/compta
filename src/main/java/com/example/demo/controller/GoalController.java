@@ -40,6 +40,20 @@ public class GoalController {
             currentValues.putIfAbsent(aid, BigDecimal.ZERO);
         }
 
+        // Sort goals by type, then by progression (smallest to largest)
+        goals.sort((g1, g2) -> {
+            // First, sort by type
+            int typeCompare = g1.getType().compareTo(g2.getType());
+            if (typeCompare != 0) {
+                return typeCompare;
+            }
+
+            // Then, sort by progression (smallest to largest)
+            BigDecimal progress1 = getProgressPercentage(g1, currentValues);
+            BigDecimal progress2 = getProgressPercentage(g2, currentValues);
+            return progress1.compareTo(progress2);
+        });
+
         // Alerts: TARGET_BALANCE goals already reached but monthly deposit still active
         List<Goal> alerts = new ArrayList<>();
         for (Goal goal : goals) {
@@ -148,5 +162,26 @@ public class GoalController {
         goalService.deleteGoal(id);
         ra.addFlashAttribute("success", "Objectif supprimé.");
         return "redirect:/goals?trendMonths=" + trendMonths;
+    }
+
+    /**
+     * Calculate progress percentage for sorting purposes
+     */
+    private BigDecimal getProgressPercentage(Goal goal, Map<Long, BigDecimal> currentValues) {
+        if (goal.getTargetAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal current;
+        if (goal.getType() == GoalType.TARGET_BALANCE) {
+            current = currentValues.getOrDefault(goal.getSavingsAccount().getId(), BigDecimal.ZERO);
+        } else {
+            // MONTHLY_CONTRIBUTION
+            current = goal.getSavingsAccount().getMonthlyDeposit() != null 
+                    ? goal.getSavingsAccount().getMonthlyDeposit() 
+                    : BigDecimal.ZERO;
+        }
+
+        return current.multiply(new BigDecimal(100)).divide(goal.getTargetAmount(), 2, java.math.RoundingMode.HALF_UP);
     }
 }

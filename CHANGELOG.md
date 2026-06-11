@@ -5,6 +5,15 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.8.1] - 2026-06-11
+
+### Modifié
+
+- **Budget – Dépenses récurrentes du mois** : mise en évidence visuelle des montants en fonction de la date du mois.
+  - Les dépenses avec une date passée (jour < aujourd'hui) apparaissent en grisé barré avec le badge "DÉJÀ COMPTÉE" pour indiquer qu'elles sont déjà prises en compte.
+  - Les dépenses à venir restent en rouge pour signaler qu'elles sont encore à déduire dans la projection du mois.
+  - Ajout d'une légende dans la carte pour expliciter le code couleur.
+
 ## [0.8.0] - 2026-06-09
 
 ### Ajouté
