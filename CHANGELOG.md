@@ -5,7 +5,13 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
-## [Unreleased]
+## [0.8.2]
+
+### Corrigé
+
+- **Budget – Dépenses du jour** : les dépenses du jour en cours n'étaient pas déduites du solde en cours. Dorénavant, les montants du jour d'aujourd'hui sont correctement considérés comme déjà dépensés et apparaissent comme "DÉJÀ COMPTÉE", ce qui réduit correctement le montant des dépenses restantes affichées.
+  - Modification de `BudgetService.projectBalance()` : les dépenses du jour actuel sont soustraites du solde initial avant la projection du reste du mois.
+  - Mise à jour du template `budget.html` : la condition d'affichage du statut "DÉJÀ COMPTÉE" inclut désormais le jour d'aujourd'hui (changement de `<` à `<=`).
 
 ### Ajouté
 

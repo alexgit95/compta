@@ -91,7 +91,7 @@
                     <td colspan="6" style="text-align:center;" class="text-muted">Aucune dépense configurée.</td>
                 </tr>
                 <tr th:each="exp : ${expenses}"
-                    th:classappend="${exp.dayOfMonth < today.dayOfMonth} ? ' recurring-expense-accounted-row' : ''">
+                    th:classappend="${exp.dayOfMonth <= today.dayOfMonth} ? ' recurring-expense-accounted-row' : ''">
                     <td>
                         <span class="icon-preview"
                               th:text="${exp.category != null ? exp.category.icon : ''}"></span>
@@ -100,9 +100,9 @@
                     <td th:text="${exp.label}"></td>
                     <td th:text="${exp.dayOfMonth}"></td>
                     <td class="text-right recurring-expense-amount"
-                        th:classappend="${exp.dayOfMonth < today.dayOfMonth} ? ' recurring-expense-amount-accounted' : ' recurring-expense-amount-upcoming'">
+                        th:classappend="${exp.dayOfMonth <= today.dayOfMonth} ? ' recurring-expense-amount-accounted' : ' recurring-expense-amount-upcoming'">
                         <span th:text="${#numbers.formatDecimal(exp.amount, 1, 2) + ' €'}"></span>
-                        <span th:if="${exp.dayOfMonth < today.dayOfMonth}" class="recurring-expense-status">déjà comptée</span>
+                        <span th:if="${exp.dayOfMonth <= today.dayOfMonth}" class="recurring-expense-status">déjà comptée</span>
                     </td>
                     <td sec:authorize="hasAnyRole('ADMIN','EDITOR')">
                         <a th:href="@{/budget/expenses/{id}/edit(id=${exp.id})}"
