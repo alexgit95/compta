@@ -31,11 +31,15 @@ public class CreditController {
         Map<Long, BigDecimal> repaymentPercentages = new LinkedHashMap<>();
         Map<Long, String> repaymentColors = new LinkedHashMap<>();
         Map<Long, String> remainingDurations = new LinkedHashMap<>();
+        Map<Long, BigDecimal> currentRemainingAmounts = new LinkedHashMap<>();
         BigDecimal totalRemaining = BigDecimal.ZERO;
         BigDecimal totalMonthlyPayments = BigDecimal.ZERO;
 
         for (Credit credit : credits) {
-            BigDecimal pct = creditService.getRepaymentPercentage(credit);
+            BigDecimal currentRemaining = creditService.getCurrentRemainingAmount(credit);
+            currentRemainingAmounts.put(credit.getId(), currentRemaining);
+
+            BigDecimal pct = creditService.getRepaymentPercentage(credit, currentRemaining);
             repaymentPercentages.put(credit.getId(), pct);
             String color;
             if (pct.compareTo(BigDecimal.valueOf(75)) >= 0) {
@@ -47,11 +51,12 @@ public class CreditController {
             }
             repaymentColors.put(credit.getId(), color);
             remainingDurations.put(credit.getId(), creditService.getRemainingDurationLabel(credit));
-            totalRemaining = totalRemaining.add(credit.getRemainingAmount());
+            totalRemaining = totalRemaining.add(currentRemaining);
             totalMonthlyPayments = totalMonthlyPayments.add(credit.getMonthlyPayment());
         }
 
         model.addAttribute("credits", credits);
+        model.addAttribute("currentRemainingAmounts", currentRemainingAmounts);
         model.addAttribute("repaymentPercentages", repaymentPercentages);
         model.addAttribute("repaymentColors", repaymentColors);
         model.addAttribute("remainingDurations", remainingDurations);

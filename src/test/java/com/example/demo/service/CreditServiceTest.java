@@ -119,4 +119,38 @@ class CreditServiceTest {
         String label = creditService.getRemainingDurationLabel(credit);
         assertEquals("0 mois", label);
     }
+
+    @Test
+    void getCurrentRemainingAmountSubtractsElapsedMonthlyPayments() {
+        Credit credit = new Credit();
+        credit.setLabel("Test restant");
+        credit.setType("Immobilier");
+        credit.setTotalAmount(BigDecimal.valueOf(100000));
+        credit.setRate(BigDecimal.valueOf(1.0));
+        credit.setStartDate(LocalDate.of(2020, 1, 1));
+        credit.setEndDate(LocalDate.of(2040, 1, 1));
+        credit.setMonthlyPayment(BigDecimal.valueOf(500));
+        credit.setRemainingAmount(BigDecimal.valueOf(10000));
+        credit.setRemainingAmountDate(LocalDate.now().minusMonths(3));
+
+        BigDecimal remaining = creditService.getCurrentRemainingAmount(credit);
+        assertEquals(0, BigDecimal.valueOf(8500.00).compareTo(remaining));
+    }
+
+    @Test
+    void getCurrentRemainingAmountDoesNotGoBelowZero() {
+        Credit credit = new Credit();
+        credit.setLabel("Test zéro");
+        credit.setType("Consommation");
+        credit.setTotalAmount(BigDecimal.valueOf(5000));
+        credit.setRate(BigDecimal.ZERO);
+        credit.setStartDate(LocalDate.of(2024, 1, 1));
+        credit.setEndDate(LocalDate.of(2026, 1, 1));
+        credit.setMonthlyPayment(BigDecimal.valueOf(300));
+        credit.setRemainingAmount(BigDecimal.valueOf(600));
+        credit.setRemainingAmountDate(LocalDate.now().minusMonths(3));
+
+        BigDecimal remaining = creditService.getCurrentRemainingAmount(credit);
+        assertEquals(0, BigDecimal.ZERO.setScale(2).compareTo(remaining));
+    }
 }

@@ -45,6 +45,14 @@ public class BudgetService {
 
         Map<LocalDate, BigDecimal> projection = new LinkedHashMap<>();
         BigDecimal balance = currentBalance;
+        
+        // Subtract today's expenses from the initial balance
+        BigDecimal todayExpense = remaining.stream()
+                .filter(e -> e.getDayOfMonth() == today.getDayOfMonth())
+                .map(RecurringExpense::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        balance = balance.subtract(todayExpense);
+        
         projection.put(today, balance);
 
         for (LocalDate date = today.plusDays(1); !date.isAfter(endOfMonth); date = date.plusDays(1)) {

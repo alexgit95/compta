@@ -3,7 +3,9 @@ package com.example.demo.controller;
 import com.example.demo.model.Category;
 import com.example.demo.model.RecurringExpense;
 import com.example.demo.repository.CategoryRepository;
+import com.example.demo.service.AppSettingService;
 import com.example.demo.service.BudgetService;
+import com.example.demo.service.ShoppingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,8 +17,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
 @Controller
 @RequestMapping("/budget")
@@ -25,6 +26,8 @@ public class BudgetController {
 
     private final BudgetService budgetService;
     private final CategoryRepository categoryRepository;
+    private final AppSettingService appSettingService;
+    private final ShoppingService shoppingService;
 
     @GetMapping
     public String budget(@RequestParam(required = false) BigDecimal balance, Model model) {
@@ -43,8 +46,34 @@ public class BudgetController {
         BigDecimal endOfMonthBalance = projection.values().stream()
                 .reduce(balance, (a, b) -> b);
 
-        // Total expenses = difference between end and start
-        BigDecimal totalMonthExpenses = balance.subtract(endOfMonthBalance).abs();
+        // Total recurring expenses = difference between end and start
+        BigDecimal totalRecurringExpenses = balance.subtract(endOfMonthBalance).abs();
+
+        // --- Shopping (courses) budget ---
+        java.util.List<com.example.demo.model.ShoppingSettings> shoppingList = shoppingService.findAll();
+        BigDecimal remainingShoppingBudget = BigDecimal.ZERO;
+        int remainingShoppingTrips = 0;
+        LocalDate nextShoppingDate = null;
+        
+        if (!shoppingList.isEmpty()) {
+            com.example.demo.model.ShoppingSettings shopping = shoppingList.get(0);
+            remainingShoppingBudget = shoppingService.getRemainingShoppingBudgetThisMonth(shopping, today);
+            remainingShoppingTrips = shoppingService.getRemainingShoppingTripsThisMonth(shopping, today);
+            nextShoppingDate = shoppingService.getNextShoppingDate(shopping);
+            
+            model.addAttribute("hasShoppingConfig", true);
+            model.addAttribute("shoppingAmount", shopping.getAmount());
+            model.addAttribute("remainingShoppingBudget", remainingShoppingBudget);
+            model.addAttribute("remainingShoppingTrips", remainingShoppingTrips);
+            model.addAttribute("nextShoppingDate", nextShoppingDate);
+        } else {
+            model.addAttribute("hasShoppingConfig", false);
+        }
+        
+        // Total expenses = recurring + shopping
+        BigDecimal totalMonthExpenses = totalRecurringExpenses.add(remainingShoppingBudget);
+        // Recalculate end-of-month balance with shopping included
+        endOfMonthBalance = balance.subtract(totalMonthExpenses);
 
         // Convert LocalDate keys to ISO strings for safe JS inline serialization
         Map<String, BigDecimal> projectionStr = new LinkedHashMap<>();
@@ -54,9 +83,52 @@ public class BudgetController {
         model.addAttribute("currentBalance", balance);
         model.addAttribute("endOfMonthBalance", endOfMonthBalance);
         model.addAttribute("totalMonthExpenses", totalMonthExpenses);
+        model.addAttribute("totalRecurringExpenses", totalRecurringExpenses);
         model.addAttribute("endOfMonth", today.withDayOfMonth(today.lengthOfMonth()));
         model.addAttribute("today", today);
         model.addAttribute("expenses", budgetService.findAllExpenses());
+
+        // --- Sankey data ---
+        BigDecimal salary = appSettingService.getNumeric(AppSettingService.KEY_BUDGET_SALARY, BigDecimal.ZERO);
+        BigDecimal courses = appSettingService.getNumeric(AppSettingService.KEY_BUDGET_COURSES, BigDecimal.ZERO);
+
+        // Build Sankey links: [from, to, value]
+        // Level 1: Salaires → Category
+        // Level 2: Category → RecurringExpense
+        // Special nodes (courses, remaining budget) are grouped under "Divers"
+        List<List<Object>> sankeyLinks = new ArrayList<>();
+        Map<String, BigDecimal> categoryTotals = new LinkedHashMap<>();
+        final String otherCategory = "📦 Divers";
+
+        List<RecurringExpense> allExpenses = budgetService.findAllExpenses();
+        for (RecurringExpense exp : allExpenses) {
+            String catName = exp.getCategory() != null
+                    ? (exp.getCategory().getIcon() != null ? exp.getCategory().getIcon() + " " : "") + exp.getCategory().getName()
+                    : "Sans catégorie";
+            categoryTotals.merge(catName, exp.getAmount(), BigDecimal::add);
+        }
+
+        // Salary → each category
+        for (Map.Entry<String, BigDecimal> entry : categoryTotals.entrySet()) {
+            sankeyLinks.add(Arrays.asList("💰 Salaires", entry.getKey(), entry.getValue()));
+        }
+        // Salary → Divers → Courses (special)
+        if (courses.compareTo(BigDecimal.ZERO) > 0) {
+            sankeyLinks.add(Arrays.asList("💰 Salaires", otherCategory, courses));
+            sankeyLinks.add(Arrays.asList(otherCategory, "🛒 Courses", courses));
+        }
+
+        // Category → each expense
+        for (RecurringExpense exp : allExpenses) {
+            String catName = exp.getCategory() != null
+                    ? (exp.getCategory().getIcon() != null ? exp.getCategory().getIcon() + " " : "") + exp.getCategory().getName()
+                    : "Sans catégorie";
+            sankeyLinks.add(Arrays.asList(catName, exp.getLabel(), exp.getAmount()));
+        }
+
+        model.addAttribute("sankeyLinks", sankeyLinks);
+        model.addAttribute("sankeySalary", salary);
+        model.addAttribute("sankeyCourses", courses);
         return "budget";
     }
 

@@ -15,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Controller
@@ -29,6 +30,8 @@ public class AdminController {
     private final ImportExportService importExportService;
     private final SavingsAccountTypeService savingsAccountTypeService;
     private final PropertyService propertyService;
+    private final AppSettingService appSettingService;
+    private final ShoppingService shoppingService;
     private final ObjectMapper objectMapper;
 
     // --- Categories ---
@@ -184,5 +187,56 @@ public class AdminController {
         propertyService.delete(id);
         ra.addFlashAttribute("success", "Bien immobilier supprimé.");
         return "redirect:/admin/properties";
+    }
+
+    // --- App Settings ---
+
+    @GetMapping("/settings")
+    public String settings(Model model) {
+        model.addAttribute("salary",
+                appSettingService.getNumeric(AppSettingService.KEY_BUDGET_SALARY, BigDecimal.ZERO));
+        model.addAttribute("courses",
+                appSettingService.getNumeric(AppSettingService.KEY_BUDGET_COURSES, BigDecimal.ZERO));
+        return "admin/settings";
+    }
+
+    @PostMapping("/settings/save")
+    public String saveSettings(@RequestParam BigDecimal salary,
+                               @RequestParam BigDecimal courses,
+                               RedirectAttributes ra) {
+        appSettingService.saveNumeric(AppSettingService.KEY_BUDGET_SALARY,
+                "Salaire mensuel total (€)", salary);
+        appSettingService.saveNumeric(AppSettingService.KEY_BUDGET_COURSES,
+                "Budget courses mensuelles (€)", courses);
+        ra.addFlashAttribute("success", "Paramètres enregistrés.");
+        return "redirect:/admin/settings";
+    }
+
+    // --- Shopping (Courses) ---
+
+    @GetMapping("/shopping")
+    public String shopping(Model model) {
+        java.util.List<ShoppingSettings> settings = shoppingService.findAll();
+        ShoppingSettings setting = settings.isEmpty() ? new ShoppingSettings() : settings.get(0);
+        
+        model.addAttribute("shoppingSettings", setting);
+        
+        if (setting.getId() != null) {
+            model.addAttribute("nextShoppingDate", 
+                shoppingService.getNextShoppingDate(setting));
+            model.addAttribute("remainingTrips", 
+                shoppingService.getRemainingShoppingTripsThisMonth(setting, java.time.LocalDate.now()));
+            model.addAttribute("remainingBudget", 
+                shoppingService.getRemainingShoppingBudgetThisMonth(setting, java.time.LocalDate.now()));
+        }
+        
+        return "admin/shopping";
+    }
+
+    @PostMapping("/shopping/save")
+    public String saveShopping(@ModelAttribute ShoppingSettings settings, RedirectAttributes ra) {
+        shoppingService.save(settings);
+        ra.addFlashAttribute("success", "Configuration des courses enregistrée.");
+        return "redirect:/admin/shopping";
     }
 }

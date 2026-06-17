@@ -197,6 +197,29 @@ tbody tr:hover { background: #f9fbff; }
 .amount-negative { color: var(--danger); }
 .amount-warning  { color: var(--warning); }
 
+/* ===== Budget recurring expenses ===== */
+.recurring-expense-legend { font-size: .82rem; }
+.recurring-expense-accounted-row td { background: #fcfcfd; }
+.recurring-expense-amount { font-weight: 700; white-space: nowrap; }
+.recurring-expense-amount-upcoming { color: var(--danger); }
+.recurring-expense-amount-accounted {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+.recurring-expense-status {
+  display: inline-block;
+  margin-left: .45rem;
+  padding: .14rem .5rem;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #5f6c7b;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
 /* ===== Icon preview ===== */
 .icon-preview { font-size: 1.4rem; }
 

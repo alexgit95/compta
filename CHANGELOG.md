@@ -5,6 +5,50 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [0.8.2]
+
+### Corrigé
+
+- **Budget – Dépenses du jour** : les dépenses du jour en cours n'étaient pas déduites du solde en cours. Dorénavant, les montants du jour d'aujourd'hui sont correctement considérés comme déjà dépensés et apparaissent comme "DÉJÀ COMPTÉE", ce qui réduit correctement le montant des dépenses restantes affichées.
+  - Modification de `BudgetService.projectBalance()` : les dépenses du jour actuel sont soustraites du solde initial avant la projection du reste du mois.
+  - Mise à jour du template `budget.html` : la condition d'affichage du statut "DÉJÀ COMPTÉE" inclut désormais le jour d'aujourd'hui (changement de `<` à `<=`).
+
+### Ajouté
+
+- **Gestion des courses (Budget)** : nouvelle fonctionnalité pour gérer et prévoir les dépenses de courses.
+  - Nouvelle entité `ShoppingSettings` : configuration du montant des courses et de leur fréquence (en jours).
+  - Page d'administration `/admin/shopping` : interface pour configurer le montant et la fréquence des courses, avec affichage de la prochaine date prévue et des courses restantes ce mois.
+  - Service `ShoppingService` : calculs des courses restantes pour le mois courant et du budget restant à dépenser.
+  - Affichage dans la page Budget : deux cartes synthétiques montrant le montant restant à dépenser en courses ce mois et la prochaine date de courses prévue.
+  - Intégration à l'import/export JSON : les paramètres de courses sont sauvegardés et restaurés lors de l'export/import.
+  - Initialisation par défaut au démarrage : si aucune configuration n'existe, une configuration par défaut est créée (80€, hebdomadaire, date actuelle).
+  - Navigation Admin : lien "🛒 Courses" ajouté dans la sous-navigation de toutes les pages d'administration.
+  - **Décomposition des dépenses** : la carte "Dépenses restantes ce mois" affiche le total et une ventilation détaillée : montant des dépenses récurrentes et montant des courses (si configurées). Cette décomposition aide à visualiser le poids des courses dans le budget total du mois.
+
+## [0.8.1] - 2026-06-11
+
+### Modifié
+
+- **Crédits – Tableau récapitulatif** : le "restant dû" est désormais calculé dynamiquement à partir du montant restant saisi et de sa date de référence.
+  - Calcul appliqué : `montant restant saisi - (mensualité × nombre de mois écoulés depuis la date de saisie)`.
+  - Le total "restant dû" et le pourcentage remboursé utilisent aussi cette valeur recalculée.
+
+- **Budget – Dépenses récurrentes du mois** : mise en évidence visuelle des montants en fonction de la date du mois.
+  - Les dépenses avec une date passée (jour < aujourd'hui) apparaissent en grisé barré avec le badge "DÉJÀ COMPTÉE" pour indiquer qu'elles sont déjà prises en compte.
+  - Les dépenses à venir restent en rouge pour signaler qu'elles sont encore à déduire dans la projection du mois.
+  - Ajout d'une légende dans la carte pour expliciter le code couleur.
+
+## [0.8.0] - 2026-06-09
+
+### Ajouté
+
+- **Diagramme de Sankey – Budget** : un diagramme de flux (Sankey) est affiché en bas de la page Budget. Il représente le flux des dépenses récurrentes depuis la source "Salaires" vers chaque catégorie (niveau 2) puis vers chaque dépense individuelle (niveau 3). Une catégorie spéciale "🛒 Courses" est incluse avec un montant configurable.
+- **Diagramme de Sankey – Épargne** : un diagramme de flux est affiché en bas de la page Épargne, montrant la répartition des versements mensuels entre chaque compte épargne.
+- **Paramètres applicatifs (`AppSetting`)** : nouvelle entité JPA `app_setting` (clé/valeur) permettant de stocker des paramètres configurables (salaire mensuel total, budget courses).
+- **Page d'administration "Paramètres"** (`/admin/settings`) : formulaire permettant de configurer le salaire mensuel total et le budget courses utilisés dans le diagramme Sankey du budget.
+- **Import/Export** : les `AppSetting` sont inclus dans l'export JSON et restaurés à l'import.
+- Navigation Admin : lien "⚙️ Paramètres" ajouté dans la sous-navigation de toutes les pages d'administration.
+
 ## [0.7.5] - 2026-06-01
 
 ### Corrigé

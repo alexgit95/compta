@@ -5,6 +5,10 @@ Application Spring Boot de gestion de budget personnel et d'épargne, avec inter
 ## Fonctionnalités
 
 - **Budget** : saisie du solde courant, projection quotidienne jusqu'en fin de mois avec graphique d'évolution
+  - Gestion des courses : configuration du montant des courses et de leur fréquence (nombre de jours entre chaque achat)
+  - Affichage du nombre de courses restantes ce mois et du montant restant à dépenser en courses
+  - Prévision des dépenses de courses basée sur la date courante et la dernière date d'achat
+  - **Décomposition des dépenses** : la carte "Dépenses restantes ce mois" affiche le montant total avec ventilation entre dépenses récurrentes et courses
 - **Dépenses récurrentes** : gestion des dépenses mensuelles (catégorie, libellé, montant, jour du mois)
 - **Épargne** : suivi de plusieurs comptes épargne avec simulation de progression et graphiques
   - Catégorie par compte : 🔄 **Fond de roulement** (livrets, dépenses courantes) ou 📈 **Épargne long terme** (prise en compte dans le patrimoine)
@@ -40,9 +44,10 @@ Application Spring Boot de gestion de budget personnel et d'épargne, avec inter
   - Gestion des catégories avec icônes emoji
   - Gestion des biens immobiliers (libellé, valeur d'achat, date d'achat, valeur actuelle sur le marché)
   - Gestion des types de support d'épargne avec icônes et pourcentages recommandés
+  - Gestion des courses : configuration du montant et de la fréquence avec affichage des prévisions
   - Gestion des utilisateurs (3 rôles : ADMIN, EDITOR, VIEWER)
   - Clés API avec nom, durée de validité et historique d'utilisation
-  - Import / Export JSON de toute la base de données (incluant biens immobiliers et liaisons crédit-bien)
+  - Import / Export JSON de toute la base de données (incluant biens immobiliers, liaisons crédit-bien et configuration des courses)
 - **Sécurité** : login/mot de passe, passkeys (WebAuthn / FIDO2), remember-me 12 mois, protection CSRF
 - **API REST** : endpoint `/api/export` protégé par clé API
 
