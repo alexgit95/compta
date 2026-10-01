@@ -18,4 +18,6 @@ public class ExportDto {
     private List<User> users;
     private List<AppSetting> appSettings;
     private List<ShoppingSettings> shoppingSettings;
+    private List<StatementRow> statementRows;
+    private SavedForecastAnalysis savedForecastAnalysis;
 }

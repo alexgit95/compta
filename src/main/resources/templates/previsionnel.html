@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout :: layout(~{::content}, ~{::scripts})}">
+<head><title>Prévisionnel (BETA)</title></head>
+
+<th:block th:fragment="content">
+    <div class="flex flex-wrap" style="align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.5rem;">
+        <h1 style="font-size:1.4rem; font-weight:800; margin:0;">Prévisionnel <span class="badge">BETA</span></h1>
+        <form th:action="@{/previsionnel/analyse}" method="post" class="form-inline">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <div class="form-group">
+                <label for="tolerancePercent">Tolérance de montant (%)</label>
+                <input id="tolerancePercent" name="tolerancePercent" type="number" min="0" max="10" step="0.5"
+                       required class="form-control" style="width:110px;" th:value="${tolerancePercent}"/>
+            </div>
+            <button type="submit" class="btn btn-primary">Analyser les charges fixes</button>
+        </form>
+    </div>
+
+    <div th:if="${toleranceError}" class="alert alert-error" role="alert" th:text="${toleranceError}"></div>
+    <div th:if="${analysisStale}" class="alert alert-error" role="status">Analyse à relancer : les relevés ou la période ont changé.</div>
+
+    <div th:if="${analysisRun and analysis == null}" class="alert alert-error" role="status">
+        Historique insuffisant : trois mois consécutifs de relevés terminés sont nécessaires.
+    </div>
+
+    <section th:if="${analysis != null}">
+        <h2 style="font-size:1.1rem; margin-bottom:.75rem;" th:text="|Charges fixes candidates · ${analysis.from} à ${analysis.to}|"></h2>
+        <p th:if="${#lists.isEmpty(analysis.candidates)}" class="text-muted" role="status">
+            Aucune charge fixe détectée sur cette période.
+        </p>
+        <div th:unless="${#lists.isEmpty(analysis.candidates)}" class="table-wrap">
+            <table>
+                <thead><tr><th>Libellé</th><th>Cadence</th><th class="text-right">Montant habituel</th><th>Occurrences</th><th>Dates observées</th><th>Budget</th><th>Action</th></tr></thead>
+                <tbody>
+                    <tr th:each="match, row : ${matches}" th:with="candidate=${match.candidate}">
+                        <td th:text="${candidate.label}"></td>
+                        <td th:text="${candidate.cadence == T(com.example.demo.service.FixedChargeDetectionService.Cadence).MENSUELLE ? 'Mensuelle' : 'Hebdomadaire'}"></td>
+                        <td class="text-right" th:text="${#numbers.formatDecimal(candidate.amount, 1, 2) + ' €'}"></td>
+                        <td th:text="${candidate.occurrences}"></td>
+                        <td><span th:each="date, status : ${candidate.dates}"
+                                  th:text="${date.toString() + (status.last ? '' : ' · ')}"></span></td>
+                        <td>
+                            <span th:switch="${match.status.name()}">
+                                <span th:case="'RETROUVEE'">Retrouvée</span>
+                                <span th:case="'A_VERIFIER'">À vérifier</span>
+                                <span th:case="'NON_RETROUVEE'">Non retrouvée</span>
+                                <span th:case="'NON_COMPARABLE'">Non comparable</span>
+                            </span>
+                            <div th:each="expense : ${match.expenses}" class="text-muted"
+                                 th:text="|${expense.label} · ${#numbers.formatDecimal(expense.amount, 1, 2)} € · jour ${expense.dayOfMonth}|"></div>
+                        </td>
+                        <td>
+                            <a sec:authorize="hasAnyRole('ADMIN','EDITOR')"
+                               th:if="${match.status.name() == 'A_VERIFIER' or match.status.name() == 'NON_RETROUVEE'}"
+                               th:href="@{/previsionnel/candidates/{index}/new(index=${row.index},from=${analysis.from},candidateKey=${candidate.hashCode()},tolerancePercent=${tolerancePercent})}"
+                               class="btn btn-primary btn-sm">Ajouter</a>
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot><tr><th colspan="2">Total mensuel des charges détectées (hors hebdomadaires)</th>
+                    <td class="text-right" th:text="${#numbers.formatDecimal(monthlyTotal, 1, 2) + ' €'}"></td>
+                    <td colspan="4"></td></tr></tfoot>
+            </table>
+        </div>
+
+        <h2 style="font-size:1.1rem; margin:1.5rem 0 .75rem;">Dépenses Budget non confirmées par l'analyse</h2>
+        <p th:if="${#lists.isEmpty(unconfirmedExpenses)}" class="text-muted">Toutes les dépenses Budget ont une correspondance confirmée.</p>
+        <div th:unless="${#lists.isEmpty(unconfirmedExpenses)}" class="table-wrap">
+            <table>
+                <thead><tr><th>Libellé Budget</th><th class="text-right">Montant</th><th>Jour</th><th>Statut</th></tr></thead>
+                <tbody><tr th:each="entry : ${unconfirmedExpenses}">
+                    <td th:text="${entry.expense.label}"></td>
+                    <td class="text-right" th:text="${#numbers.formatDecimal(entry.expense.amount, 1, 2) + ' €'}"></td>
+                    <td th:text="${entry.expense.dayOfMonth}"></td>
+                    <td th:text="${entry.uncertain ? 'Correspondance incertaine' : 'Non identifiée dans les charges fixes'}"></td>
+                </tr></tbody>
+            </table>
+        </div>
+    </section>
+</th:block>
+
+<th:block th:fragment="scripts"></th:block>
+</html>

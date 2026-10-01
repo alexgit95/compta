@@ -25,6 +25,8 @@ public class ImportExportService {
     private final UserRepository userRepository;
     private final AppSettingRepository appSettingRepository;
     private final ShoppingSettingsRepository shoppingSettingsRepository;
+    private final StatementRowRepository statementRowRepository;
+    private final SavedForecastAnalysisRepository savedForecastAnalysisRepository;
     private final EntityManager entityManager;
 
     public ExportDto export() {
@@ -40,6 +42,8 @@ public class ImportExportService {
         dto.setUsers(userRepository.findAll());
         dto.setAppSettings(appSettingRepository.findAll());
         dto.setShoppingSettings(shoppingSettingsRepository.findAll());
+        dto.setStatementRows(statementRowRepository.findAllByOrderByYearDescMonthDescLineNumberAsc());
+        dto.setSavedForecastAnalysis(savedForecastAnalysisRepository.findById(1L).orElse(null));
         return dto;
     }
 
@@ -57,6 +61,8 @@ public class ImportExportService {
         categoryRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
         shoppingSettingsRepository.deleteAllInBatch();
+        statementRowRepository.deleteAllInBatch();
+        savedForecastAnalysisRepository.findById(1L).ifPresent(savedForecastAnalysisRepository::delete);
         // Flush deletes to DB before inserting to avoid UNIQUE constraint violations
         entityManager.flush();
         entityManager.clear();
@@ -178,6 +184,22 @@ public class ImportExportService {
                 s.setId(null);
             }
             shoppingSettingsRepository.saveAll(dto.getShoppingSettings());
+        }
+
+        if (dto.getSavedForecastAnalysis() != null) {
+            SavedForecastAnalysis saved = dto.getSavedForecastAnalysis();
+            saved.setId(1L);
+            for (SavedForecastCandidate candidate : saved.getCandidates()) {
+                candidate.setId(null);
+            }
+            savedForecastAnalysisRepository.save(saved);
+        }
+
+        if (dto.getStatementRows() != null) {
+            for (StatementRow row : dto.getStatementRows()) {
+                row.setId(null);
+            }
+            statementRowRepository.saveAll(dto.getStatementRows());
         }
     }
 }

@@ -24,6 +24,7 @@
         <a sec:authorize="hasRole('ADMIN')"
            th:href="@{/admin/categories}"
            th:classappend="${activePage == 'admin'} ? 'active'">⚙️ Administration</a>
+          <a th:href="@{/previsionnel}" th:classappend="${activePage == 'previsionnel'} ? 'active'">📈 Prévisionnel (BETA)</a>
         <a th:href="@{/webauthn/register}"
            th:classappend="${activePage == 'passkeys'} ? 'active'"
            title="Gérer mes clés d'accès (Passkeys)">🔑 Mes clés</a>

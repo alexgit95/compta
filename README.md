@@ -10,6 +10,7 @@ Application Spring Boot de gestion de budget personnel et d'épargne, avec inter
   - Prévision des dépenses de courses basée sur la date courante et la dernière date d'achat
   - **Décomposition des dépenses** : la carte "Dépenses restantes ce mois" affiche le montant total avec ventilation entre dépenses récurrentes et courses
 - **Dépenses récurrentes** : gestion des dépenses mensuelles (catégorie, libellé, montant, jour du mois)
+- **Prévisionnel (BETA)** : analyse à la demande des débits récurrents des trois derniers mois importés consécutifs terminés, avec tableau des charges candidates mensuelles et hebdomadaires
 - **Épargne** : suivi de plusieurs comptes épargne avec simulation de progression et graphiques
   - Catégorie par compte : 🔄 **Fond de roulement** (livrets, dépenses courantes) ou 📈 **Épargne long terme** (prise en compte dans le patrimoine)
   - Deux graphiques séparés partageant les mêmes contrôles (mode réelles / + projection / + tendance 2 ans, plage de dates, plein écran) :
@@ -48,6 +49,7 @@ Application Spring Boot de gestion de budget personnel et d'épargne, avec inter
   - Gestion des utilisateurs (3 rôles : ADMIN, EDITOR, VIEWER)
   - Clés API avec nom, durée de validité et historique d'utilisation
   - Import / Export JSON de toute la base de données (incluant biens immobiliers, liaisons crédit-bien et configuration des courses)
+  - Import par lot de relevés bancaires CSV et conservation de l'historique des opérations
 - **Sécurité** : login/mot de passe, passkeys (WebAuthn / FIDO2), remember-me 12 mois, protection CSRF
 - **API REST** : endpoint `/api/export` protégé par clé API
 
@@ -69,6 +71,26 @@ export ADMIN_PASSWORD=MonMotDePasse!
 ```
 
 L'application est accessible sur `http://localhost:8080`.
+
+### Importer des relevés bancaires
+
+Dans **Administration > Import / Export**, choisir le mois, l'année et un fichier CSV ; le bouton **+** permet d'ajouter d'autres lignes (jusqu'à dix relevés). Retirer une ligne avant de cliquer sur **Importer les relevés** si besoin. Chaque mois est traité indépendamment : un fichier invalide laisse son mois intact sans empêcher les autres imports. Deux lignes du même lot visant le même mois échouent toutes les deux. Un bilan de succès ou d'erreur par ligne apparaît après l'envoi, sans journal permanent des tentatives.
+
+Les mois enregistrés et leur nombre d'opérations apparaissent sur la même page ; cliquer sur un mois pour consulter ses lignes. Un nouvel import remplace **tout le mois choisi**, sans toucher aux autres mois. Le bouton de suppression à côté d'un mois efface, après confirmation, **toutes ses lignes**, opérations et anciens soldes compris.
+
+Le format pris en charge est celui des relevés d'exemple dans `docs/` : UTF-8 (avec ou sans BOM), sans en-tête, huit champs séparés par `;` pour les opérations, quatre ou huit pour les lignes de solde, date `jj/MM/aaaa` et montant signé avec virgule décimale. Les lignes de solde sont lues mais ne sont plus enregistrées lors des nouveaux imports ; celles déjà stockées restent présentes jusqu'à la réimportation ou à la suppression manuelle du mois. Débits, crédits et virements restent dans l'historique sans classement automatique. Taille maximale : 2 Mo par fichier, dix relevés par lot. Les dates doivent toutes correspondre au mois et à l'année sélectionnés.
+
+L'export JSON global inclut ces relevés. La restauration JSON remplace **toutes** les données, y compris cet historique ; restaurer une ancienne sauvegarde sans relevés efface donc les relevés déjà importés. L'import CSV mensuel est indépendant de cette restauration globale.
+
+### Analyser les charges fixes
+
+Dans **Prévisionnel (BETA)**, choisir au besoin la **tolérance de montant** (0 à 10 %, par pas de 0,5 ; défaut 4 %), puis cliquer sur **Analyser les charges fixes**. Ce même réglage sert à la détection et au rapprochement Budget : il est conservé avec le dernier résultat, sans devenir une préférence globale. L'application choisit la série de trois mois importés consécutifs la plus récente avant le mois en cours ; en cas de lacune récente, elle utilise une série antérieure si elle existe. Si aucune série n'est disponible, elle signale l'historique insuffisant.
+
+Le dernier résultat est enregistré en base et retrouvé à l'ouverture de l'onglet, sans relancer la détection. Un réimport ou une suppression d'un des relevés analysés l'invalide ; une période de trois mois devenue différente le rend également périmé. L'écran affiche alors **Analyse à relancer** et masque les anciennes charges, sans recalcul automatique. L'export/restauration JSON global inclut ce résultat ; une ancienne sauvegarde sans analyse laisse l'écran prêt pour un premier calcul.
+
+Le tableau montre les débits candidats, leur montant habituel, leur fréquence mensuelle ou hebdomadaire et les dates observées. Pour une série mensuelle avec plusieurs débits identiques chaque mois, le montant est le total mensuel habituel et toutes les occurrences sont comptées (deux Navigo de 90,80 € donnent six occurrences et 181,60 € par mois sur trois mois). Pour une série hebdomadaire, le montant reste celui d'une occurrence. Le total en pied de tableau additionne uniquement les charges mensuelles détectées, même si elles sont déjà dans Budget ; les hebdomadaires en sont exclues. Le tableau est trié par numéro du jour de la première occurrence, puis par libellé et montant en cas d'égalité. Les virements sortants vers l'épargne sont inclus, les crédits et les anciennes lignes de solde sont ignorés. Le rapprochement utilise d'abord le libellé, des montants proches selon la tolérance choisie et des dates régulières. Pour les seuls virements dont le libellé change, un second passage privilégie le montant et la cadence si le cycle n'est pas ambigu ; le premier libellé observé illustre alors la ligne, suivi de « (libellé variable) ».
+
+La colonne **Budget** rapproche les montants mensuels détectés des dépenses récurrentes saisies, puis compare leur jour habituel à ±2 jours sans imposer le même libellé : **Retrouvée** si la correspondance est unique, **À vérifier** en cas de montant partiel, de jour éloigné ou d'ambiguïté, **Non retrouvée** sans montant correspondant et **Non comparable** pour une charge hebdomadaire. Sous le tableau, les dépenses Budget non confirmées sont listées comme **Correspondance incertaine** si elles sont seulement « À vérifier », ou **Non identifiée dans les charges fixes** si aucune candidate ne les rapproche. Cette liste et les statuts Budget utilisent toujours les dépenses actuelles, même quand le résultat d'analyse a été enregistré auparavant. Les rôles ADMIN/EDITOR peuvent choisir **Ajouter** sur une candidate mensuelle non retrouvée ou à vérifier : le formulaire Budget est prérempli, mais ne crée rien avant confirmation et contrôle antidoublon. Une série de deux Navigo peut correspondre à deux charges Budget de 90,80 € ou une charge de 181,60 € ; si un seul paiement existe déjà, ajouter directement l'agrégat serait refusé pour éviter un double comptage. Ces candidats BETA peuvent manquer des charges ou produire de faux positifs et ne calculent pas encore le solde de fin de mois ni Holt-Winters.
 
 Un compte administrateur est créé automatiquement au premier démarrage avec les credentials définis dans les variables d'environnement.
 

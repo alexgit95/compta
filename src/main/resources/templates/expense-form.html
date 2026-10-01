@@ -9,9 +9,17 @@
         th:text="${expense.id != null} ? 'Modifier la dépense' : 'Nouvelle dépense récurrente'"></h1>
 
     <div class="card">
-        <form th:action="@{/budget/expenses/save}" th:object="${expense}" method="post">
+        <p th:if="${forecastPartial}" class="text-muted">Vérifiez les dépenses Budget déjà proches avant d'ajouter : le montant prérempli est le total mensuel détecté.</p>
+        <form th:action="${forecastSource} ? @{/previsionnel/candidates/save} : @{/budget/expenses/save}"
+              th:object="${expense}" method="post">
             <input type="hidden" th:field="*{id}"/>
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <th:block th:if="${forecastSource}">
+                <input type="hidden" name="candidateIndex" th:value="${candidateIndex}"/>
+                <input type="hidden" name="candidateKey" th:value="${candidateKey}"/>
+                <input type="hidden" name="from" th:value="${from}"/>
+                <input type="hidden" name="tolerancePercent" th:value="${tolerancePercent}"/>
+            </th:block>
 
             <div class="form-group">
                 <label>Libellé *</label>
@@ -48,7 +56,7 @@
             </div>
 
             <div class="flex" style="justify-content:flex-end; gap:.75rem; margin-top:1.5rem;">
-                <a th:href="@{/budget}" class="btn btn-outline">Annuler</a>
+                <a th:href="${forecastSource} ? @{/previsionnel} : @{/budget}" class="btn btn-outline">Annuler</a>
                 <button type="submit" class="btn btn-primary">
                     <span th:text="${expense.id != null} ? 'Enregistrer' : 'Créer'"></span>
                 </button>

@@ -5,6 +5,26 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [Non publié]
+
+### Ajouté
+
+- Import mensuel de relevés CSV depuis l'administration, avec validation du fichier, consultation par mois et remplacement atomique du mois choisi. Les opérations signées sont conservées en SQLite/PostgreSQL, sans calcul prévisionnel.
+- Historique des relevés dans l'export/restauration JSON, avec tests du parsing, du remplacement mensuel et des contrôles d'accès.
+- Import de dix relevés au maximum en un lot (2 Mo par fichier), avec bilan individuel et transactions indépendantes ; rejet des mois en doublon.
+- Les nouveaux imports ignorent les lignes de solde. Suppression manuelle d'un mois complet, anciens soldes compris ; aucune purge automatique des soldes historiques ni modification de la restauration JSON.
+- Onglet Prévisionnel (BETA) : détection à la demande des charges fixes mensuelles et hebdomadaires sur trois mois importés consécutifs terminés ; tableau des montants et occurrences, sans modification du Budget ni calcul Holt-Winters.
+- Prévisionnel BETA : tolérance de montant commune à l'analyse et au rapprochement, réglable de 0 à 10 % par pas de 0,5 (défaut 4 %), indicateur de couverture Budget et total mensuel hors charges hebdomadaires ; ajout d'une charge détectée seulement après vérification dans le formulaire prérempli.
+- Prévisionnel BETA : sauvegarde du dernier résultat avec sa période, tolérance et occurrences dans la base et dans l'export JSON ; lecture au retour sur la page, invalidation en cas de relevés ou fenêtre modifiés et indication « Analyse à relancer ».
+- Liste sous les charges détectées des dépenses Budget non confirmées, recalculée à chaque affichage avec distinction entre « Correspondance incertaine » et « Non identifiée ».
+
+### Corrigé
+
+- Les relevés dont les lignes de solde comportent quatre colonnes (comme juillet 2026) sont importables ; les opérations conservent l'obligation d'avoir huit colonnes.
+- Détection BETA : comparaison des montants à 4 % par défaut ; les virements récurrents dont le libellé varie sont rapprochés par montant et cadence quand leur cycle n'est pas ambigu, avec un libellé observé présenté à titre d'exemple. Les autres types restent regroupés par libellé.
+- Détection BETA : tableau trié par jour du mois de la première occurrence observée, puis par libellé et montant.
+- Détection BETA : les débits identiques répétés le même jour chaque mois (ex. deux prélèvements Navigo) sont tous comptés ; le montant mensuel affiché est la médiane des totaux des trois mois.
+
 ## [0.8.2]
 
 ### Corrigé

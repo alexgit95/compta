@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -56,12 +57,99 @@ class ImportExportServiceTest {
     @Autowired
     private ShoppingSettingsRepository shoppingSettingsRepository;
 
+        @Autowired
+        private StatementRowRepository statementRowRepository;
+
+    @Autowired
+    private SavedForecastAnalysisRepository savedForecastAnalysisRepository;
+
+    @Autowired
+    private SavedForecastService savedForecastService;
+
     @Autowired
     private EntityManager entityManager;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     private ImportExportService makeService() {
         return new ImportExportService(categoryRepository, expenseRepository, savingsAccountTypeRepository,
-                savingsAccountRepository, savingsEntryRepository, goalRepository, creditRepository, propertyRepository, userRepository, appSettingRepository, shoppingSettingsRepository, entityManager);
+                savingsAccountRepository, savingsEntryRepository, goalRepository, creditRepository, propertyRepository, userRepository, appSettingRepository, shoppingSettingsRepository, statementRowRepository, savedForecastAnalysisRepository, entityManager);
+    }
+
+        @Test
+        void savedAnalysisSurvivesJsonRoundTripWithRepeatedDates() {
+        savedForecastAnalysisRepository.findById(1L).ifPresent(savedForecastAnalysisRepository::delete);
+        savedForecastAnalysisRepository.flush();
+        SavedForecastAnalysis snapshot = new SavedForecastAnalysis();
+        snapshot.setId(1L);
+        snapshot.setFromYear(2026);
+        snapshot.setFromMonth(7);
+        snapshot.setToYear(2026);
+        snapshot.setToMonth(9);
+        snapshot.setTolerancePercent(new BigDecimal("5.0"));
+        snapshot.setAnalyzedAt(java.time.Instant.parse("2026-10-01T10:00:00Z"));
+        snapshot.setSourceFingerprint("0".repeat(64));
+        snapshot.setValid(true);
+        SavedForecastCandidate navigo = new SavedForecastCandidate();
+        navigo.setLabel("NAVIGO");
+        navigo.setAmount(new BigDecimal("181.60"));
+        navigo.setCadence("MENSUELLE");
+        navigo.getDates().addAll(List.of(LocalDate.of(2026, 7, 3), LocalDate.of(2026, 7, 3),
+            LocalDate.of(2026, 8, 3), LocalDate.of(2026, 8, 3),
+            LocalDate.of(2026, 9, 3), LocalDate.of(2026, 9, 3)));
+        snapshot.getCandidates().add(navigo);
+        savedForecastAnalysisRepository.saveAndFlush(snapshot);
+
+        ImportExportService service = makeService();
+        ExportDto backup = objectMapper.readValue(objectMapper.writeValueAsString(service.export()), ExportDto.class);
+        service.importData(backup);
+        var restored = savedForecastAnalysisRepository.findById(1L).orElseThrow();
+        assertEquals(0, restored.getTolerancePercent().compareTo(new BigDecimal("5")));
+        assertEquals(6, restored.getCandidates().getFirst().getDates().size());
+        assertEquals(restored.getCandidates().getFirst().getDates().get(0),
+            restored.getCandidates().getFirst().getDates().get(1));
+        assertTrue(savedForecastService.current().orElseThrow().stale());
+
+        service.importData(new ExportDto());
+        assertEquals(0, savedForecastAnalysisRepository.count());
+        assertTrue(savedForecastService.current().isEmpty());
+        }
+
+    @Test
+    void statementRowsSurviveJsonBackupAndLegacyRestoreClearsThem() {
+        statementRowRepository.deleteAllInBatch();
+        StatementRow row = new StatementRow();
+        row.setYear(2026);
+        row.setMonth(8);
+        row.setLineNumber(1);
+        row.setDate(LocalDate.of(2026, 8, 3));
+        row.setAmount(new BigDecimal("-12.01"));
+        row.setKind(StatementRow.Kind.OPERATION);
+        row.setDebitLabel("BACKBLAZE");
+        statementRowRepository.saveAndFlush(row);
+
+        StatementRow oldBalance = new StatementRow();
+        oldBalance.setYear(2026);
+        oldBalance.setMonth(8);
+        oldBalance.setLineNumber(2);
+        oldBalance.setDate(LocalDate.of(2026, 8, 31));
+        oldBalance.setAmount(new BigDecimal("500"));
+        oldBalance.setKind(StatementRow.Kind.BALANCE);
+        statementRowRepository.saveAndFlush(oldBalance);
+
+        ImportExportService service = makeService();
+        String json = objectMapper.writeValueAsString(service.export());
+        ExportDto backup = objectMapper.readValue(json, ExportDto.class);
+        service.importData(backup);
+        var restored = statementRowRepository.findByYearAndMonthOrderByLineNumberAsc(2026, 8);
+        assertEquals(2, restored.size());
+        assertEquals("-12.01", restored.get(0).getAmount().toPlainString());
+        assertEquals("BACKBLAZE", restored.get(0).getDebitLabel());
+        assertEquals(StatementRow.Kind.BALANCE, restored.get(1).getKind());
+
+        service.importData(new ExportDto());
+        assertEquals(0, statementRowRepository.count());
     }
 
     @Test

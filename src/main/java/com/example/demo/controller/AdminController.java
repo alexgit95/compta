@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import com.example.demo.dto.ExportDto;
+import com.example.demo.dto.StatementBatchForm;
 import com.example.demo.model.*;
 import com.example.demo.repository.CategoryRepository;
 import com.example.demo.service.*;
@@ -28,6 +29,8 @@ public class AdminController {
     private final UserService userService;
     private final ApiKeyService apiKeyService;
     private final ImportExportService importExportService;
+    private final StatementImportService statementImportService;
+    private final StatementBatchService statementBatchService;
     private final SavingsAccountTypeService savingsAccountTypeService;
     private final PropertyService propertyService;
     private final AppSettingService appSettingService;
@@ -119,11 +122,42 @@ public class AdminController {
     // --- Import / Export ---
 
     @GetMapping("/data")
-    public String dataPage(jakarta.servlet.http.HttpServletRequest request, Model model) {
+    public String dataPage(jakarta.servlet.http.HttpServletRequest request,
+                           @RequestParam(required = false) Integer year,
+                           @RequestParam(required = false) Integer month, Model model) {
         String baseUrl = request.getScheme() + "://" + request.getServerName()
                 + ":" + request.getServerPort();
         model.addAttribute("apiBaseUrl", baseUrl);
+        model.addAttribute("statementMonths", statementImportService.importedMonths());
+        if (request.getParameter("uploadTooLarge") != null) {
+            model.addAttribute("error", "Lot trop volumineux. Maximum : dix relevés de 2 Mo chacun.");
+        }
+        if (year != null && month != null && year >= 1900 && year <= 2100 && month >= 1 && month <= 12) {
+            model.addAttribute("selectedStatement", month + "/" + year);
+            model.addAttribute("statementRows", statementImportService.rowsForMonth(year, month));
+        }
         return "admin/data";
+    }
+
+    @PostMapping("/data/statements/import")
+    public String importStatement(@ModelAttribute StatementBatchForm form, RedirectAttributes ra) {
+        try {
+            ra.addFlashAttribute("batchResults", statementBatchService.importBatch(form.getUploads()));
+        } catch (IllegalArgumentException ex) {
+            ra.addFlashAttribute("error", ex.getMessage());
+        }
+        return "redirect:/admin/data";
+    }
+
+    @PostMapping("/data/statements/{year}/{month}/delete")
+    public String deleteStatementMonth(@PathVariable int year, @PathVariable int month, RedirectAttributes ra) {
+        try {
+            statementImportService.deleteMonth(year, month);
+            ra.addFlashAttribute("success", "Relevé " + month + "/" + year + " supprimé.");
+        } catch (IllegalArgumentException ex) {
+            ra.addFlashAttribute("error", ex.getMessage());
+        }
+        return "redirect:/admin/data";
     }
 
     @GetMapping("/data/export")

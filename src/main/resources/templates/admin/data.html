@@ -53,6 +53,81 @@
         </div>
     </div>
 
+    <section class="card">
+        <div class="card-title">Relevés bancaires mensuels</div>
+        <form th:action="@{/admin/data/statements/import}" method="post" enctype="multipart/form-data">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <div id="statementUploads">
+                <div class="statement-upload-row flex flex-wrap" style="gap:.75rem; align-items:flex-end; margin-bottom:.75rem;">
+                    <div class="form-group">
+                        <label for="statementMonth0" data-field="month">Mois</label>
+                        <select id="statementMonth0" name="uploads[0].month" data-field="month" class="form-control" required>
+                            <option th:each="number : ${#numbers.sequence(1,12)}" th:value="${number}"
+                                    th:text="${number}" th:selected="${number == T(java.time.LocalDate).now().getMonthValue()}"></option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="statementYear0" data-field="year">Année</label>
+                        <input id="statementYear0" type="number" name="uploads[0].year" data-field="year"
+                               min="1900" max="2100" class="form-control"
+                               th:value="${T(java.time.LocalDate).now().getYear()}" required/>
+                    </div>
+                    <div class="form-group" style="flex:1; min-width:180px;">
+                        <label for="statementFile0" data-field="file">Relevé CSV</label>
+                        <input id="statementFile0" type="file" name="uploads[0].file" data-field="file"
+                               accept=".csv,text/csv" class="form-control" required/>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm remove-statement" title="Retirer cette ligne"
+                            aria-label="Retirer cette ligne" hidden>✕</button>
+                </div>
+            </div>
+            <button type="button" id="addStatement" class="btn btn-outline btn-sm" title="Ajouter un relevé"
+                    aria-label="Ajouter un relevé">+</button>
+            <p class="text-muted">Un nouvel import remplace toutes les lignes du mois sélectionné, sans modifier les autres mois.</p>
+            <button type="submit" class="btn btn-primary">Importer les relevés</button>
+        </form>
+        <div th:if="${batchResults != null}" aria-live="polite">
+            <h2 class="card-title">Résultat de l'import</h2>
+            <div th:each="result : ${batchResults}" class="alert"
+                 th:classappend="${result.success ? 'alert-success' : 'alert-error'}">
+                <strong th:text="${result.month != null && result.year != null ? result.month + '/' + result.year : 'Ligne ' + result.position}"></strong>
+                <span th:text="${result.success ? result.operationCount + ' opérations importées.' : result.error}"></span>
+            </div>
+        </div>
+        <div class="table-wrap" th:if="${!#lists.isEmpty(statementMonths)}">
+            <table>
+                <thead><tr><th>Mois</th><th>Opérations</th><th>Actions</th></tr></thead>
+                <tbody><tr th:each="period : ${statementMonths}">
+                    <td><a th:href="@{/admin/data(year=${period.year},month=${period.month})}"
+                           th:text="|${period.month}/${period.year}|"></a></td>
+                    <td th:text="${period.operationCount}"></td>
+                    <td>
+                        <form th:action="@{/admin/data/statements/{year}/{month}/delete(year=${period.year},month=${period.month})}"
+                              method="post" onsubmit="return confirm('Supprimer toutes les entrées de ce mois ?')">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                            <button type="submit" class="btn btn-danger btn-sm" title="Supprimer ce mois"
+                                    th:attr="aria-label=|Supprimer ${period.month}/${period.year}|">✕</button>
+                        </form>
+                    </td>
+                </tr></tbody>
+            </table>
+        </div>
+        <div th:if="${selectedStatement != null}">
+            <h2 class="card-title" th:text="|Relevé ${selectedStatement}|"></h2>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Date</th><th>Type</th><th>Libellé</th><th class="text-right">Montant</th></tr></thead>
+                    <tbody><tr th:each="row : ${statementRows}">
+                        <td th:text="${row.date}"></td>
+                        <td th:text="${row.kind.name() == 'BALANCE' ? 'Solde' : row.transactionType}"></td>
+                        <td th:text="${!#strings.isEmpty(row.debitLabel) ? row.debitLabel : (!#strings.isEmpty(row.creditLabel) ? row.creditLabel : row.reference)}"></td>
+                        <td class="text-right" th:text="${#numbers.formatDecimal(row.amount, 1, 2) + ' €'}"></td>
+                    </tr></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
     <!-- API export documentation -->
     <div class="card">
         <div class="card-title">🔗 Export via API</div>
@@ -74,5 +149,38 @@
 </div>
 </th:block>
 
-<th:block th:fragment="scripts"></th:block>
+<th:block th:fragment="scripts">
+<script>
+const statementUploads = document.getElementById('statementUploads');
+const addStatement = document.getElementById('addStatement');
+function updateStatementRows() {
+    const rows = statementUploads.querySelectorAll('.statement-upload-row');
+    rows.forEach((row, index) => {
+        row.querySelectorAll('[data-field]').forEach(element => {
+            const field = element.dataset.field;
+            if (element.tagName === 'LABEL') {
+                element.htmlFor = 'statement' + field[0].toUpperCase() + field.slice(1) + index;
+            } else {
+                element.id = 'statement' + field[0].toUpperCase() + field.slice(1) + index;
+                element.name = 'uploads[' + index + '].' + field;
+            }
+        });
+        row.querySelector('.remove-statement').style.display = index === 0 ? 'none' : '';
+    });
+    addStatement.disabled = rows.length >= 10;
+}
+addStatement.addEventListener('click', () => {
+    const row = statementUploads.firstElementChild.cloneNode(true);
+    row.querySelector('[data-field="file"]').value = '';
+    statementUploads.appendChild(row);
+    updateStatementRows();
+});
+statementUploads.addEventListener('click', event => {
+    if (!event.target.classList.contains('remove-statement')) return;
+    event.target.closest('.statement-upload-row').remove();
+    updateStatementRows();
+});
+updateStatementRows();
+</script>
+</th:block>
 </html>

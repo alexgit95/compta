@@ -61,7 +61,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/export").hasRole("API")
                 .requestMatchers("/admin/**").hasRole("ADMIN")
-                .requestMatchers("/budget/**", "/savings/**", "/goals/**").hasAnyRole("ADMIN", "EDITOR", "VIEWER")
+                .requestMatchers("/budget/**", "/savings/**", "/goals/**", "/previsionnel", "/previsionnel/**")
+                    .hasAnyRole("ADMIN", "EDITOR", "VIEWER")
                 .requestMatchers("/css/**", "/js/**", "/webjars/**", "/favicon.ico",
                                  "/manifest.webmanifest", "/sw.js", "/icons/**").permitAll()
                 .anyRequest().authenticated()
