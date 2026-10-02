@@ -5,6 +5,12 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnement Sémantique](https://semver.org/lang/fr/).
 
+## [Non publié]
+
+### Corrigé
+
+- Le test de date estimée d'atteinte d'un objectif utilise désormais sa date de référence du 16 avril 2026 au lieu de dépendre de la date du système.
+
 ## [0.8.2]
 
 ### Corrigé

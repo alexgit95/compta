@@ -115,7 +115,7 @@ class GoalServiceTest {
     @Test
     void testEstimatedReachDateWithLinearRegression() {
         // Test with 12-month trend (default)
-        Optional<LocalDate> reachDate = goalService.estimatedReachDate(goal, 12);
+        Optional<LocalDate> reachDate = goalService.estimatedReachDate(goal, 12, LocalDate.of(2026, 4, 16));
         
         assertTrue(reachDate.isPresent(), "Reach date should be calculated");
         LocalDate estimated = reachDate.get();

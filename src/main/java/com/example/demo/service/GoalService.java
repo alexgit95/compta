@@ -40,9 +40,12 @@ public class GoalService {
      * Returns empty if the goal is already reached or if the trend is not positive.
      */
     public Optional<LocalDate> estimatedReachDate(Goal goal, int trendMonths) {
+        return estimatedReachDate(goal, trendMonths, LocalDate.now());
+    }
+
+    Optional<LocalDate> estimatedReachDate(Goal goal, int trendMonths, LocalDate now) {
         if (goal.getType() != GoalType.TARGET_BALANCE) return Optional.empty();
 
-        LocalDate now = LocalDate.now();
         BigDecimal currentBalance = savingsService.projectBalance(goal.getSavingsAccount(), now);
         BigDecimal target = goal.getTargetAmount();
 
