@@ -33,3 +33,7 @@ build/
 .vscode/
 budget.db
 nul
+docs/aout.csv
+docs/juillet.csv
+docs/juin.csv
+docs/mai.csv
